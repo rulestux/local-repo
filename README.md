@@ -1381,6 +1381,12 @@ curl|amd64
 git|amd64
 docker.io|amd64
 ```
+As seguintes entradas assumirão automaticamente a arquitetura nativa do sistema:
+
+```text
+tmux
+htop
+```
 
 É o único arquivo que pode ser editado manualmente.
 
