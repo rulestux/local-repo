@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+#################################################################
+# local-repo - Manages and converges local packet pools for     #
+#              offline environments.                            #
+#                                                               #
+# Site:         https://github.com/rulestux                     #
+# Author:       Jean Felipe                                     #
+# Maintenance:  Jean Felipe                                     #
+# License:      MIT                                             #
+#                                                               #
+#################################################################
+# Description:                                                  #
+#   An offline-first local package repository manager.          #
+#   It synchronizes preferred packages and their entire         #
+#   dependency trees, allowing administrators to provision host #
+#   systems completely offline, ensuring structural flexibility #
+#   and portability.                                            #
+#                                                               #
+# Usage example:                                                #
+#   $ sudo local-repo install <package>                         #
+#                                                               #
+#################################################################
+# History:                                                      #
+#   v0.1 2026-07-05, Jean Felipe:                               #
+#     - Initial architecture design and core module setup.      #
+#                                                               #
+#################################################################
+# Tested on:                                                    #
+#   bash v5.2                                                   #
+#                                                               #
+#################################################################
+
+#--------------------------------------------------------------------
+# INVERSÃO DE CONTROLE E INICIALIZAÇÃO DO BOOTSTRAP
+#
+# O dispatcher não possui inteligência sobre a estrutura de pastas do
+# projeto. Ele executa uma importação relativa baseada em sua própria
+# localização em disco e transfere a responsabilidade de autodescoberta
+# e carregamento para o ecossistema do bootstrap.sh.
+#--------------------------------------------------------------------
+source "$(dirname "${BASH_SOURCE[0]}")/lib/core/bootstrap.sh"
+
+# Executa o ciclo de vida completo da aplicação passando os argumentos da CLI
+bootstrap_run "$@"
