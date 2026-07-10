@@ -537,26 +537,12 @@ Importa um repositório já existente armazenado em outro diretório.
 sudo local-repo import --from-directory /srv/repository
 ```
 
-### A partir de um dispositivo USB
-
-O dispositivo pode ser identificado pelo UUID, LABEL ou ponto de montagem.
-
-```bash
-sudo local-repo import --from-usb DebianRepository
-```
-
-ou
-
-```bash
-sudo local-repo import --from-usb 4A8D-19F2
-```
-
 ### A partir de um arquivo compactado
 
 Também é possível restaurar um repositório previamente exportado.
 
 ```bash
-sudo local-repo import --from-tar backup.tar.zst
+sudo local-repo import --from-tar backup.tar.gz
 ```
 
 Durante a importação, o sistema:
@@ -596,7 +582,7 @@ A exportação preserva a estrutura necessária para que o repositório possa se
 ### Exportando para um arquivo compactado
 
 ```bash
-sudo local-repo export --to-tar backup-2026-07-07.tar.zst
+sudo local-repo export --to-tar backup-2026-07-07.tar.gz
 ```
 
 Fluxo da operação:
@@ -614,7 +600,7 @@ Compactação
 
 ↓
 
-Arquivo .tar.zst
+Arquivo .tar.gz
 ```
 
 Durante a exportação, o sistema:
@@ -642,7 +628,7 @@ Saída esperada:
 O arquivo gerado pode ser restaurado posteriormente com:
 
 ```bash
-sudo local-repo import --from-tar backup-2026-07-07.tar.zst
+sudo local-repo import --from-tar backup-2026-07-07.tar.gz
 ```
 
 ---

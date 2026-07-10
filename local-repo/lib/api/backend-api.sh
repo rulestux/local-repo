@@ -1,5 +1,16 @@
 # Sourced da arquitetura local-repo - Arquivo estritamente documental
 
+#################################################################
+# local-repo - Manages and converges local packet pools for     #
+#              offline environments.                            #
+#                                                               #
+# Site:         https://github.com/rulestux                     #
+# Author:       Jean Felipe                                     #
+# Maintenance:  Jean Felipe                                     #
+# License:      MIT                                             #
+#                                                               #
+#################################################################
+
 #--------------------------------------------------------------------
 # CONTRATO ABSTRATO DA API DE BACKENDS (INTERFACE SPECIFICATION)
 #

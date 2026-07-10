@@ -1,5 +1,16 @@
 # Sourced dinamicamente por backend.sh - Não executar diretamente
 
+#################################################################
+# local-repo - Manages and converges local packet pools for     #
+#              offline environments.                            #
+#                                                               #
+# Site:         https://github.com/rulestux                     #
+# Author:       Jean Felipe                                     #
+# Maintenance:  Jean Felipe                                     #
+# License:      MIT                                             #
+#                                                               #
+#################################################################
+
 #--------------------------------------------------------------------
 # DRIVE DE IMPLEMENTAÇÃO CONCRETA: ECOSSISTEMA APT (DEBIAN/UBUNTU)
 #

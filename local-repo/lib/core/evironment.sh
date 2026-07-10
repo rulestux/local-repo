@@ -1,5 +1,16 @@
 # Sourced do bootstrap.sh - Não executar diretamente
 
+#################################################################
+# local-repo - Manages and converges local packet pools for     #
+#              offline environments.                            #
+#                                                               #
+# Site:         https://github.com/rulestux                     #
+# Author:       Jean Felipe                                     #
+# Maintenance:  Jean Felipe                                     #
+# License:      MIT                                             #
+#                                                               #
+#################################################################
+
 #--------------------------------------------------------------------
 # VALIDADOR DE SANIDADE OPERACIONAL DO AMBIENTE (SANDBOX GUARD)
 #--------------------------------------------------------------------

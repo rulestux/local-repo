@@ -1,5 +1,16 @@
 # Sourced do dispatcher local-repo - Não executar diretamente
 
+#################################################################
+# local-repo - Manages and converges local packet pools for     #
+#              offline environments.                            #
+#                                                               #
+# Site:         https://github.com/rulestux                     #
+# Author:       Jean Felipe                                     #
+# Maintenance:  Jean Felipe                                     #
+# License:      MIT                                             #
+#                                                               #
+#################################################################
+
 #--------------------------------------------------------------------
 # MECANISMO DE IDEMPOTÊNCIA DO BOOTSTRAP
 #
@@ -122,15 +133,53 @@ bootstrap_run() {
     local command="$1"
     shift
 
-    # Dispatcher / Roteador de comandos temporário...
+    # Helper privado de carregamento seguro para a categoria 'commands'.
+    # Precisa estar definida ANTES do 'case' que a utiliza logo abaixo —
+    # em Bash, uma função aninhada só passa a existir no momento em que
+    # a linha que a declara é efetivamente executada, não antes.
+    _bootstrap_source_command() {
+        local cmd_name="$1"
+        local target_cmd_file="${PROJECT_ROOT}/lib/commands/${cmd_name}.sh"
+        if [[ -f "${target_cmd_file}" ]]; then
+            source "${target_cmd_file}"
+        else
+            log_fatal "Command implementation file missing: lib/commands/${cmd_name}.sh"
+            exit "${EXIT_FAILURE}"
+        fi
+    }
+
     log_info "Executing system dispatcher for command: '${command}'"
 
-    if [[ "${command}" == "init" ]]; then
-        log_info "Routing to command implementation: init_command"
-        # init_command "$@" # Injetado quando lib/commands/init.sh for adicionado
-    else
-        log_warn "Command '${command}' is recognized but its stub implementation is sleeping."
-    fi
+    #------------------------------------------------------------
+    # ROTEADOR POLIMÓRFICO DE COMANDOS
+    #
+    # Cada comando de negócio (lib/commands/*.sh) só usa 'return'
+    # internamente — nunca 'exit'. É este 'case', dentro do
+    # orquestrador central, o único ponto autorizado a converter
+    # esse código de retorno em um 'exit' de processo de verdade.
+    #------------------------------------------------------------
+    case "${command}" in
+        init)
+            _bootstrap_source_command "init"
+            init_run "$@" || exit "$?"
+            ;;
+        import)
+            _bootstrap_source_command "import"
+            import_run "$@" || exit "$?"
+            ;;
+        export)
+            _bootstrap_source_command "export"
+            export_run "$@" || exit "$?"
+            ;;
+        sync|diff|stats|verify)
+            log_warn "Command '${command}' is recognized but its pipeline stub is sleeping."
+            ;;
+        *)
+            log_error "Unknown command: '${command}'"
+            echo "Try '${PROGRAM_NAME} --help' for available commands." >&2
+            exit "${EXIT_INVALID_USAGE}"
+            ;;
+    esac
 
     log_info "Application life cycle finished successfully."
     exit "${EXIT_SUCCESS}"
