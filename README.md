@@ -958,19 +958,19 @@ flowchart TD
 CLI["CLI (local-repo)"]
 TUI["TUI (local-repo-tui)"]
 
-BOOT["Bootstrap"]
+--> BOOT["Bootstrap"]
 
-CORE["Core Engine"]
+--> CORE["Core Engine"]
 
-BACKEND["Backend Abstraction"]
+--> BACKEND["Backend Abstraction"]
 
-APT["APT Backend"]
+--> APT["APT Backend"]
 
-DNF["DNF Backend (Planejado)"]
+--> DNF["DNF Backend (Planejado)"]
 
-COMMANDS["Command Modules"]
+--> COMMANDS["Command Modules"]
 
-STATE["Repository State"]
+--> STATE["Repository State"]
 
 CLI --> BOOT
 TUI --> BOOT
