@@ -55,3 +55,20 @@ backend_download_package() { :; }
 #             !=0 se as ferramentas de indexação falharem.
 #====================================================================
 backend_generate_metadata() { :; }
+
+#====================================================================
+# ASSINATURA: backend_parse_pool_identity
+# DESCRIÇÃO:  Traduz o nome físico de um arquivo de pacote presente na
+#             pool/ (ex: 'nginx_1.18.0_amd64.deb') para a identidade
+#             lógica canônica 'nome|arquitetura' usada no restante do
+#             sistema (packages.list, packages.state). Existe para que
+#             comandos como 'diff'/'verify' comparem pacotes reais no
+#             disco contra o manifesto/estado sem precisar conhecer a
+#             convenção de nomenclatura de cada gerenciador (.deb e
+#             .rpm têm formatos de nome de arquivo diferentes).
+# ARGUMENTOS: $1 - Nome do arquivo (basename, sem caminho).
+# RETORNO:    Imprime em stdout a string "nome|arquitetura".
+#             0 se a identidade foi extraída com sucesso.
+#             !=0 se o nome de arquivo não seguir o padrão esperado.
+#====================================================================
+backend_parse_pool_identity() { :; }

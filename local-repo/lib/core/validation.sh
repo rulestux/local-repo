@@ -68,14 +68,43 @@ validation_manifest_sanitize() {
     #----------------------------------------------------------------
     # SANITIZAÇÃO DECLARATIVA DE MANIFESTO (ANTI-HUMAN ERROR)
     #
-    # Consome o arquivo informado, remove espaços, linhas em branco,
-    # comentários, unifica duplicidades (sort -u) e valida se os nomes
-    # dos pacotes seguem a especificação de nomenclatura POSIX/Linux.
+    # Converte packages.list (que aceita layout horizontal, vertical,
+    # comentários e arquitetura opcional) num formato canônico único:
+    # uma entrada 'nome|arquitetura' por linha, ordenada e sem
+    # duplicatas. A ordenação estrita é requisito obrigatório de quem
+    # consome esse arquivo depois via 'comm' (ex: diff.sh) — comm só
+    # produz resultado correto com entradas já ordenadas.
     #----------------------------------------------------------------
     local input_manifest="$1"
     local output_clean_state="$2"
 
-    # Lógica estrutural de Regex e desduplicação que usaremos na pipeline
     log_debug "Sanitizing declarative manifest '${input_manifest}' against drifts and human anomalies..."
+
+    if [[ ! -f "${input_manifest}" ]]; then
+        log_error "Manifest file not found for sanitization: ${input_manifest}"
+        return "${EXIT_FAILURE}"
+    fi
+
+    local host_arch
+    host_arch=$(util_host_architecture)
+
+    #------------------------------------------------------------
+    # PIPELINE DE NORMALIZAÇÃO (em uma única passada):
+    #   1. grep remove linhas de comentário ('#...') e linhas vazias
+    #   2. tr -s colapsa qualquer sequência de espaços/tabs em quebras
+    #      de linha, transformando o layout horizontal
+    #      ('tmux htop vim') em um token por linha
+    #   3. awk aplica a herança de arquitetura: token sem '|' recebe
+    #      '|${host_arch}' automaticamente; token que já tem '|'
+    #      (ex: 'curl|i386') é mantido como está
+    #   4. sort -u ordena estritamente e remove duplicatas
+    #------------------------------------------------------------
+    grep -vE '^[[:space:]]*(#|$)' "${input_manifest}" \
+        | tr -s '[:space:]' '\n' \
+        | grep -v '^$' \
+        | awk -v arch="${host_arch}" '{ print ($0 ~ /\|/) ? $0 : $0 "|" arch }' \
+        | sort -u > "${output_clean_state}"
+
+    log_debug "Manifest sanitized. $(wc -l < "${output_clean_state}") unique package identities resolved."
     return "${EXIT_SUCCESS}"
 }

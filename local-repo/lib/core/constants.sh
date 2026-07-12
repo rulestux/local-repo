@@ -66,6 +66,14 @@ LOG_FILE=""
 LOCK_FILE=""
 STATE_DIR=""
 FILE_DESIRED_STATE=""
+# CONTRATO DE FORMATO: qualquer código que escreva em FILE_KNOWN_STATE
+# (packages.state) — hoje só 'init' o cria vazio, futuramente 'sync' —
+# DEVE manter o arquivo estritamente ordenado (sort -u) e no formato
+# canônico 'nome|arquitetura', idêntico ao produzido por
+# validation_manifest_sanitize(). Comandos consultivos como diff.sh
+# usam 'comm' para comparar esse arquivo contra outras listas, e
+# 'comm' produz resultado incorreto (silenciosamente, sem erro) se
+# qualquer um dos lados não estiver ordenado ou em formato compatível.
 FILE_KNOWN_STATE=""
 CURRENT_BACKEND=""
 LOG_LEVEL=""

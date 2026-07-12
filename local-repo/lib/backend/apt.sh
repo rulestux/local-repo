@@ -48,6 +48,33 @@ backend_check_dependencies() {
     return "${EXIT_SUCCESS}"
 }
 
+backend_parse_pool_identity() {
+    #----------------------------------------------------------------
+    # TRADUÇÃO DE NOME FÍSICO → IDENTIDADE LÓGICA (CONVENÇÃO .DEB)
+    #
+    # Pacotes Debian seguem estritamente a convenção de nomenclatura
+    # '<nome>_<versao>_<arquitetura>.deb'. O nome do pacote nunca
+    # contém underscore (proibido pela Debian Policy), então o
+    # primeiro campo delimitado por '_' é sempre o nome; o último
+    # campo antes da extensão é sempre a arquitetura. A versão no
+    # meio pode conter underscores livremente e não atrapalha essa
+    # extração pelas pontas.
+    #----------------------------------------------------------------
+    local filename="$1"
+    local base="${filename%.deb}"
+
+    if [[ "${base}" == "${filename}" ]]; then
+        log_warn "File does not match expected .deb naming convention, skipping identity parse: ${filename}"
+        return "${EXIT_FAILURE}"
+    fi
+
+    local name="${base%%_*}"
+    local arch="${base##*_}"
+
+    echo "${name}|${arch}"
+    return "${EXIT_SUCCESS}"
+}
+
 backend_download_package() {
     local package_name="$1"
     local destination_pool="$2"

@@ -41,14 +41,11 @@ init_run() {
         fi
     done
 
-    # Resolução dinâmica e idempotente da arquitetura nativa do Host
+	# Resolução dinâmica e idempotente da arquitetura nativa do Host,
+    # centralizada em util_host_architecture() para não divergir da
+    # mesma lógica usada por validation_manifest_sanitize().
     local host_arch
-    if [[ "${CURRENT_BACKEND}" == "${BACKEND_APT}" ]]; then
-        host_arch=$(dpkg --print-architecture 2>/dev/null || uname -m)
-    else
-        host_arch=$(uname -m)
-    fi
-    log_info "Detected host primary operational architecture: ${host_arch}"
+    host_arch=$(util_host_architecture)
 
     #----------------------------------------------------------------
     # ESCRITA DO MANIFESTO INICIAL (PACKAGES.LIST)

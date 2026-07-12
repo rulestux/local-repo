@@ -39,7 +39,7 @@ environment_check_core() {
     #    em operações de deduplicação/auditoria da pool (verify, scan),
     #    e essas operações são as mesmas independentemente do backend
     #    (APT ou DNF) que estiver carregado.
-    local core_commands=("awk" "grep" "sed" "cut" "sort" "find" "flock" "mount" "tar" "fdupes")
+    local core_commands=("awk" "grep" "sed" "cut" "sort" "find" "flock" "mount" "tar" "fdupes" "comm")
     local missing_commands=()
 
     for cmd in "${core_commands[@]}"; do
