@@ -54,7 +54,7 @@ sync_run() {
         return "${EXIT_SUCCESS}"
     fi
 
-	# Acumulador de entradas bem-sucedidas nesta execução — evita reescrever
+    # Acumulador de entradas bem-sucedidas nesta execução — evita reescrever
     # e reordenar o arquivo de estado a cada pacote individual do loop.
     local success_sync=0
     local newly_synced=""
@@ -96,7 +96,7 @@ sync_run() {
         backend_generate_metadata "${REPO_BASE_DIR}"
     fi
 
-	rm -f "${clean_manifest}"
+    rm -f "${clean_manifest}"
 
     local total_pending
     total_pending=$(wc -l <<< "${drift_intent}")

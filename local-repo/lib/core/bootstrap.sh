@@ -158,44 +158,44 @@ bootstrap_run() {
     # orquestrador central, o único ponto autorizado a converter
     # esse código de retorno em um 'exit' de processo de verdade.
     #------------------------------------------------------------
-	case "${command}" in
-		init)
-		    _bootstrap_source_command "init"
-		    init_run "$@" || exit "$?"
-		    ;;
-		import)
-		    _bootstrap_source_command "import"
-		    import_run "$@" || exit "$?"
-		    ;;
-		export)
-		    _bootstrap_source_command "export"
-		    export_run "$@" || exit "$?"
-		    ;;
-		diff)
-		    _bootstrap_source_command "diff"
-		    diff_run "$@" || exit "$?"
-		    ;;
-		sync)
-		    _bootstrap_source_command "sync"
-		    sync_run "$@" || exit "$?"
-		    ;;
-		download)
-		    _bootstrap_source_command "download"
-		    download_run "$@" || exit "$?"
-		    ;;
-		install)
-		    _bootstrap_source_command "install"
-		    install_run "$@" || exit "$?"
-		    ;;
-		stats|verify)
-		    log_warn "Command '${command}' is recognized but its pipeline stub is sleeping."
-		    ;;
-		*)
-		    log_error "Unknown command: '${command}'"
-		    echo "Try '${PROGRAM_NAME} --help' for available commands." >&2
-		    exit "${EXIT_INVALID_USAGE}"
-		    ;;
-	esac
+    case "${command}" in
+        init)
+            _bootstrap_source_command "init"
+            init_run "$@" || exit "$?"
+            ;;
+        import)
+            _bootstrap_source_command "import"
+            import_run "$@" || exit "$?"
+            ;;
+        export)
+            _bootstrap_source_command "export"
+            export_run "$@" || exit "$?"
+            ;;
+        diff)
+            _bootstrap_source_command "diff"
+            diff_run "$@" || exit "$?"
+            ;;
+        sync)
+            _bootstrap_source_command "sync"
+            sync_run "$@" || exit "$?"
+            ;;
+        download)
+            _bootstrap_source_command "download"
+            download_run "$@" || exit "$?"
+            ;;
+        install)
+            _bootstrap_source_command "install"
+            install_run "$@" || exit "$?"
+            ;;
+        stats|verify)
+            log_warn "Command '${command}' is recognized but its pipeline stub is sleeping."
+            ;;
+        *)
+            log_error "Unknown command: '${command}'"
+            echo "Try '${PROGRAM_NAME} --help' for available commands." >&2
+            exit "${EXIT_INVALID_USAGE}"
+            ;;
+    esac
 
     log_info "Application life cycle finished successfully."
     exit "${EXIT_SUCCESS}"

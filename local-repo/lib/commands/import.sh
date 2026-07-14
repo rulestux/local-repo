@@ -100,8 +100,8 @@ _import_from_iso() {
     # ORIGEM: IMAGEM ISO (LOOP MOUNT)
     #
     # Todo erro usa 'return' em vez de 'exit': quem decide encerrar
-	# o processo é o dispatcher em bootstrap.sh, não este handler.
-	# Isso mantém a função testável isoladamente.
+    # o processo é o dispatcher em bootstrap.sh, não este handler.
+    # Isso mantém a função testável isoladamente.
     #----------------------------------------------------------------
     local iso_path="$1"
 

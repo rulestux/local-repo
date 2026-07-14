@@ -41,7 +41,7 @@ init_run() {
         fi
     done
 
-	# Resolução dinâmica e idempotente da arquitetura nativa do Host,
+    # Resolução dinâmica e idempotente da arquitetura nativa do Host,
     # centralizada em util_host_architecture() para não divergir da
     # mesma lógica usada por validation_manifest_sanitize().
     local host_arch

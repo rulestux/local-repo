@@ -24,7 +24,7 @@ _CONSTANTS_SH_INCLUDED_=1
 # que nunca mudam durante o runtime, independente da configuração do host.
 #--------------------------------------------------------------------
 readonly PROGRAM_NAME="local-repo"
-readonly PROGRAM_VERSION="0.2"
+readonly PROGRAM_VERSION="0.1"
 readonly PROGRAM_AUTHOR="Jean Felipe"
 
 # Códigos de saída universais baseados nos padrões POSIX/SysExits
@@ -97,7 +97,7 @@ constants_initialize_globals() {
     FILE_DESIRED_STATE="${STATE_DIR}/packages.list"
     FILE_KNOWN_STATE="${STATE_DIR}/packages.state"
 
-	#------------------------------------------------------------
+    #------------------------------------------------------------
     # BACKEND NÃO É PRÉ-DEFINIDO AQUI
     #
     # Deixar CURRENT_BACKEND vazio no boot é o que permite que

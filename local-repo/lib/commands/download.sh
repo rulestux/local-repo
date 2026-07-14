@@ -61,7 +61,7 @@ download_run() {
         log_info "New intents registered. Triggering declarative sync pipeline..."
         # O sourcing de sync garante a presença de sync_run no escopo
         _bootstrap_source_command "sync"
-		sync_run || return "$?"
+        sync_run || return "$?"
     else
         log_info "Desired state is already fully satisfied. No download required."
     fi
