@@ -109,3 +109,4 @@ sync_run() {
 
     log_info "State synchronization process completed. All ${success_sync}/${total_pending} packages synchronized successfully."
     return "${EXIT_SUCCESS}"
+}
