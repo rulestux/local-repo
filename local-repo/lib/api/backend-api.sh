@@ -40,6 +40,7 @@ backend_check_dependencies() { :; }
 #             sem instalá-los no sistema host.
 # ARGUMENTOS: $1 - Nome exato do pacote (Ex: "nginx").
 #             $2 - Caminho absoluto do diretório de destino (Pool).
+#             $3 - Arquitetura alvo (Ex: "amd64", "i386", "armhf")
 # RETORNO:    0 em caso de sucesso no download da árvore completa.
 #             !=0 se o pacote não for encontrado ou houver falha de rede.
 #====================================================================
@@ -72,3 +73,16 @@ backend_generate_metadata() { :; }
 #             !=0 se o nome de arquivo não seguir o padrão esperado.
 #====================================================================
 backend_parse_pool_identity() { :; }
+
+#====================================================================
+# ASSINATURA: backend_install_from_local_pool
+# DESCRIÇÃO:  Instala um pacote no sistema hospedeiro utilizando
+#             exclusivamente a pool/ local como fonte — nunca acessa
+#             repositórios remotos nesta etapa, garantindo a
+#             convergência estritamente offline.
+# ARGUMENTOS: $1 - Nome exato do pacote a instalar (Ex: "nginx").
+#             $2 - Caminho absoluto da raiz do repositório local.
+# RETORNO:    0 se a instalação no host for concluída com sucesso.
+#             !=0 se o pacote não existir na pool ou a instalação falhar.
+#====================================================================
+backend_install_from_local_pool() { :; }

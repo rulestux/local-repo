@@ -78,6 +78,7 @@ backend_parse_pool_identity() {
 backend_download_package() {
     local package_name="$1"
     local destination_pool="$2"
+    local target_arch="$3"
 
     # Stub inicial estrutural conforme orientações da fase
     log_info "APT backend driver stub: Initiating recursive dependency download for '${package_name}'"
@@ -94,5 +95,18 @@ backend_generate_metadata() {
     log_debug "Repository root target: ${repo_root}"
 
     # Lógica real de geração de Packages.gz e criptografia InRelease entrará aqui
+    return "${EXIT_SUCCESS}"
+}
+
+backend_install_from_local_pool() {
+    local package_name="$1"
+    local repo_root="$2"
+
+    log_info "APT backend driver stub: Installing '${package_name}' from local offline pool"
+    log_debug "Repository source bounded exclusively to: ${repo_root}"
+
+    # TODO(próxima subfase): 'apt-get install --no-download-priority
+    # -o Dir::Etc::sourcelist="${repo_root}/local-repo.list" ...' ou
+    # equivalente, garantindo que apt não tente nenhuma fonte remota.
     return "${EXIT_SUCCESS}"
 }
