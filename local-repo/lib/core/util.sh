@@ -30,18 +30,22 @@ util_timestamp() {
 
 util_make_temp() {
     #----------------------------------------------------------------
-    # CRIADOR CENTRALIZADO DE ARQUIVOS TEMPORÁRIOS SEGUROS
+    # CRIADOR CENTRALIZADO DE ARQUIVOS/DIRETÓRIOS TEMPORÁRIOS SEGUROS
     #
-    # Isola a criação de arquivos de trabalho descartáveis (usados por
-    # comandos consultivos como 'diff') num único ponto do projeto.
-    # Usa 'mktemp' para evitar colisões de nome entre execuções.
-    #
-    # ARGUMENTOS: $1 - Rótulo descritivo (aparece no nome do arquivo,
-    #                  só para facilitar auditoria manual em /tmp caso
-    #                  a limpeza automática falhe por algum motivo).
+    # ARGUMENTOS: $1 - Rótulo descritivo (aparece no nome, só para
+    #                  facilitar auditoria manual em /tmp).
+    #             $2 - Tipo: "file" (padrão, compatível com todo
+    #                  código já existente que chama esta função com
+    #                  um único argumento) ou "dir".
     #----------------------------------------------------------------
     local label="${1:-tmp}"
-    mktemp "/tmp/${PROGRAM_NAME}.${label}.XXXXXX"
+    local kind="${2:-file}"
+
+    if [[ "${kind}" == "dir" ]]; then
+        mktemp -d "/tmp/${PROGRAM_NAME}.${label}.XXXXXX"
+    else
+        mktemp "/tmp/${PROGRAM_NAME}.${label}.XXXXXX"
+    fi
 }
 
 util_host_architecture() {

@@ -49,12 +49,24 @@ _export_to_tar() {
         return "${EXIT_INVALID_USAGE}"
     fi
 
-    # TODO(próxima subfase): 'tar -czf "${output_path}" -C "${REPO_BASE_DIR}"
-    # pool state log' (mantendo caminhos relativos dentro do tarball para
-    # que a restauração via import funcione independente de onde o
-    # REPO_BASE_DIR de destino estiver localizado), seguido de checagem
-    # de integridade pós-escrita ('tar -tzf').
-    log_warn "Export execution pipeline completed as stub. No archive was physically written yet."
+    # '-C' muda o diretório de trabalho do tar ANTES de empacotar, então os
+    # caminhos dentro do tarball ficam relativos (pool/..., state/...,
+    # log/...) em vez de absolutos — essencial para que o import funcione
+    # independente de onde o REPO_BASE_DIR de destino estiver localizado.
+    if ! tar -czf "${output_path}" -C "${REPO_BASE_DIR}" pool state log 2>/dev/null; then
+        log_error "Failed to create snapshot archive at: ${output_path}"
+        rm -f "${output_path}"
+        return "${EXIT_FAILURE}"
+    fi
+
+    # Checagem de integridade pós-escrita antes de reportar sucesso.
+    if ! tar -tzf "${output_path}" &> /dev/null; then
+        log_error "Snapshot archive integrity check failed after creation: ${output_path}"
+        rm -f "${output_path}"
+        return "${EXIT_FAILURE}"
+    fi
+
+    log_info "Snapshot successfully written and verified: ${output_path}"
     return "${EXIT_SUCCESS}"
 }
 

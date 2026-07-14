@@ -95,42 +95,46 @@ _import_parse_args() {
     return "${EXIT_SUCCESS}"
 }
 
-_import_from_iso() {
+_import_scan_and_copy_packages() {
     #----------------------------------------------------------------
-    # ORIGEM: IMAGEM ISO (LOOP MOUNT)
+    # VARREDURA E CÓPIA COMPARTILHADA (DIRETÓRIO / USB MONTADO / ISO MONTADA)
     #
-    # Todo erro usa 'return' em vez de 'exit': quem decide encerrar
-    # o processo é o dispatcher em bootstrap.sh, não este handler.
-    # Isso mantém a função testável isoladamente.
+    # Não filtra por extensão de arquivo (ex: '*.deb' hardcoded) de
+    # propósito — delega a validação de formato para
+    # backend_parse_pool_identity(), mantendo esta função agnóstica de
+    # backend (funciona igual para APT ou um futuro driver DNF).
     #----------------------------------------------------------------
-    local iso_path="$1"
+    local source_root="$1"
+    local copied_count=0
 
-    log_info "Preparing ISO-based import from: ${iso_path}"
+    while IFS= read -r -d '' pkg_file; do
+        local base_name
+        base_name="$(basename "${pkg_file}")"
 
-    if [[ ! -f "${iso_path}" ]]; then
-        log_error "ISO source file not found: ${iso_path}"
-        return "${EXIT_INVALID_USAGE}"
+        local identity
+        if ! identity=$(backend_parse_pool_identity "${base_name}"); then
+            continue
+        fi
+
+        if [[ -f "${POOL_DIR}/${base_name}" ]]; then
+            log_debug "Package already present in pool, skipping: ${base_name}"
+            continue
+        fi
+
+        cp "${pkg_file}" "${POOL_DIR}/"
+        echo "${identity}" >> "${FILE_KNOWN_STATE}"
+        copied_count=$((copied_count + 1))
+    done < <(find "${source_root}" -type f -print0)
+
+    if [[ ${copied_count} -gt 0 ]]; then
+        sort -u -o "${FILE_KNOWN_STATE}" "${FILE_KNOWN_STATE}"
     fi
 
-    if [[ ! -r "${iso_path}" ]]; then
-        log_error "ISO source file is not readable by this process: ${iso_path}"
-        return "${EXIT_FAILURE}"
-    fi
-
-    # TODO(próxima subfase): loop-mount real via 'mount -o loop,ro' num
-    # diretório temporário sob "${REPO_BASE_DIR}/run/mnt-import", varrer
-    # o conteúdo montado, copiar pacotes válidos para POOL_DIR e
-    # desmontar com segurança — inclusive em caso de erro no meio do
-    # processo (via trap local dedicado a este handler).
-    log_warn "ISO import pipeline completed as stub. No files were physically copied yet."
+    echo "${copied_count}"
     return "${EXIT_SUCCESS}"
 }
 
 _import_from_directory() {
-    #----------------------------------------------------------------
-    # ORIGEM: DIRETÓRIO LOCAL (também cobre dispositivos USB montados
-    # manualmente — ver nota de design no topo do arquivo)
-    #----------------------------------------------------------------
     local source_dir="$1"
 
     log_info "Preparing directory-based import from: ${source_dir}"
@@ -145,10 +149,61 @@ _import_from_directory() {
         return "${EXIT_FAILURE}"
     fi
 
-    # TODO(próxima subfase): varrer recursivamente 'source_dir' em busca
-    # de pacotes compatíveis com o backend ativo (.deb para APT, .rpm
-    # para DNF), copiá-los para POOL_DIR e reconstruir packages.state.
-    log_warn "Directory import pipeline completed as stub. No files were physically copied yet."
+    log_info "Scanning directory recursively for compatible package files..."
+
+    local copied_count
+    copied_count=$(_import_scan_and_copy_packages "${source_dir}")
+
+    log_info "Directory import completed. ${copied_count} new package file(s) merged into local pool."
+    return "${EXIT_SUCCESS}"
+}
+
+_import_from_iso() {
+    local iso_path="$1"
+
+    log_info "Preparing ISO-based import from: ${iso_path}"
+
+    if [[ ! -f "${iso_path}" ]]; then
+        log_error "ISO source file not found: ${iso_path}"
+        return "${EXIT_INVALID_USAGE}"
+    fi
+
+    if [[ ! -r "${iso_path}" ]]; then
+        log_error "ISO source file is not readable by this process: ${iso_path}"
+        return "${EXIT_FAILURE}"
+    fi
+
+    if [[ "${EUID}" -ne 0 ]]; then
+        log_error "Mounting an ISO image requires root privileges. Re-run with sudo."
+        return "${EXIT_FAILURE}"
+    fi
+
+    local mount_point="${REPO_BASE_DIR}/run/mnt-import"
+    mkdir -p "${mount_point}" || {
+        log_error "Failed to create temporary ISO mount point: ${mount_point}"
+        return "${EXIT_FAILURE}"
+    }
+
+    log_info "Mounting ISO image (read-only) at: ${mount_point}"
+
+    if ! mount -o loop,ro "${iso_path}" "${mount_point}" 2>/dev/null; then
+        log_error "Failed to loop-mount ISO image: ${iso_path}"
+        return "${EXIT_FAILURE}"
+    fi
+
+    #------------------------------------------------------------
+    # Trap LOCAL desta função (escopo de RETURN, não o trap global de
+    # processo em errors.sh). Garante o 'umount' independentemente de
+    # como a função termina — sucesso, ou aborto no meio da varredura.
+    #------------------------------------------------------------
+    trap 'umount "${mount_point}" 2>/dev/null' RETURN
+
+    log_info "Scanning mounted ISO contents for compatible package files..."
+
+    local copied_count
+    copied_count=$(_import_scan_and_copy_packages "${mount_point}")
+
+    log_info "ISO import completed. ${copied_count} new package file(s) merged into local pool."
     return "${EXIT_SUCCESS}"
 }
 
@@ -173,11 +228,45 @@ _import_from_tar() {
         return "${EXIT_FAILURE}"
     fi
 
-    # TODO(próxima subfase): validar a integridade do arquivo
-    # ('tar -tzf "${archive_path}"'), extrair pool/, state/ e log/
-    # preservando permissões via 'tar -xzf', e reconciliar o
-    # packages.state restaurado com o conteúdo atual de REPO_BASE_DIR.
-    log_warn "Tar snapshot import pipeline completed as stub. No files were physically extracted yet."
+    log_info "Validating snapshot archive integrity before extraction..."
+    if ! tar -tzf "${archive_path}" &> /dev/null; then
+        log_error "Snapshot archive is corrupted or not a valid tar.gz file: ${archive_path}"
+        return "${EXIT_FAILURE}"
+    fi
+
+    #------------------------------------------------------------
+    # RECONCILIAÇÃO ADITIVA (ver nota de design acima do arquivo).
+    # Extrai para um diretório isolado primeiro, nunca direto sobre
+    # REPO_BASE_DIR, para poder mesclar em vez de sobrescrever.
+    #------------------------------------------------------------
+    local extract_dir
+    extract_dir=$(util_make_temp "import-tar" "dir")
+
+    if ! tar -xzf "${archive_path}" -C "${extract_dir}" 2>/dev/null; then
+        log_error "Failed to extract snapshot archive contents."
+        rm -rf "${extract_dir}"
+        return "${EXIT_FAILURE}"
+    fi
+
+    local copied_count=0
+    if [[ -d "${extract_dir}/pool" ]]; then
+        while IFS= read -r -d '' pkg_file; do
+            local base_name
+            base_name="$(basename "${pkg_file}")"
+            if [[ ! -f "${POOL_DIR}/${base_name}" ]]; then
+                cp "${pkg_file}" "${POOL_DIR}/"
+                copied_count=$((copied_count + 1))
+            fi
+        done < <(find "${extract_dir}/pool" -maxdepth 1 -type f -print0)
+    fi
+
+    if [[ -f "${extract_dir}/state/packages.state" ]]; then
+        cat "${extract_dir}/state/packages.state" "${FILE_KNOWN_STATE}" | sort -u -o "${FILE_KNOWN_STATE}" -
+    fi
+
+    rm -rf "${extract_dir}"
+
+    log_info "Snapshot restoration completed. ${copied_count} new package file(s) merged into local pool."
     return "${EXIT_SUCCESS}"
 }
 
