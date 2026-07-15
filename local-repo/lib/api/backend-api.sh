@@ -86,3 +86,55 @@ backend_parse_pool_identity() { :; }
 #             !=0 se o pacote não existir na pool ou a instalação falhar.
 #====================================================================
 backend_install_from_local_pool() { :; }
+
+#====================================================================
+# ASSINATURA: backend_refresh_upstream_cache
+# DESCRIÇÃO:  Atualiza o cache de metadados do gerenciador de pacotes
+#             nativo do host contra as fontes oficiais REAIS
+#             configuradas no sistema (não a pool local) — equivalente
+#             a 'apt-get update'/'dnf check-update'. Usado tanto como
+#             teste de conectividade (via código de retorno) quanto
+#             como pré-requisito para consultas de versão precisas.
+# ARGUMENTOS: Nenhum.
+# RETORNO:    0 se o cache foi atualizado (rede/repositório acessível).
+#             !=0 se falhar (sem rede, repositório fora do ar, etc.) —
+#             este código de retorno é o único sinal de conectividade
+#             usado pelo projeto; não há teste de rede dedicado
+#             (ping/curl) para evitar dependências adicionais.
+#====================================================================
+backend_refresh_upstream_cache() { :; }
+
+#====================================================================
+# ASSINATURA: backend_query_upstream_version
+# DESCRIÇÃO:  Consulta, no cache já atualizado por
+#             backend_refresh_upstream_cache, a versão candidata mais
+#             recente de um pacote no repositório oficial configurado.
+# ARGUMENTOS: $1 - Nome exato do pacote (Ex: "nginx").
+# RETORNO:    Imprime em stdout a string de versão candidata.
+#             0 se encontrada; !=0 se o pacote não existir upstream.
+#====================================================================
+backend_query_upstream_version() { :; }
+
+#====================================================================
+# ASSINATURA: backend_parse_pool_version
+# DESCRIÇÃO:  Extrai a versão embutida no nome físico de um arquivo de
+#             pacote na pool/ (irmã de backend_parse_pool_identity,
+#             que extrai nome/arquitetura do mesmo nome de arquivo).
+# ARGUMENTOS: $1 - Nome do arquivo (basename, sem caminho).
+# RETORNO:    Imprime em stdout a string de versão.
+#             0 se extraída com sucesso; !=0 caso contrário.
+#====================================================================
+backend_parse_pool_version() { :; }
+
+#====================================================================
+# ASSINATURA: backend_compare_versions
+# DESCRIÇÃO:  Compara duas strings de versão usando a semântica de
+#             versionamento nativa do gerenciador de pacotes do backend
+#             — nunca comparação lexical simples de string, já que
+#             versões como "1.9" e "1.10" exigem semântica própria.
+# ARGUMENTOS: $1 - Versão local atual.
+#             $2 - Versão candidata upstream.
+# RETORNO:    0 se a versão upstream ($2) for estritamente mais recente
+#             que a local ($1). !=0 se local for igual ou mais recente.
+#====================================================================
+backend_compare_versions() { :; }

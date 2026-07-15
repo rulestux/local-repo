@@ -16,10 +16,10 @@ _DOWNLOAD_SH_INCLUDED_=1
 
 download_run() {
     #----------------------------------------------------------------
-    # COMANDO DE INJEÇÃO DECLARATIVA DE PACIENTES (DOWNLOAD)
+    # COMANDO DE INJEÇÃO DECLARATIVA DE PACOTES (DOWNLOAD)
     #
     # Adiciona um ou mais pacotes de forma padronizada em packages.list
-    # e executa uma passagem silenciosa de sync para convergir.
+    # e executa a convergência via chamada automática de sync.
     #----------------------------------------------------------------
     if [[ $# -lt 1 ]]; then
         log_error "No package name provided for download action."

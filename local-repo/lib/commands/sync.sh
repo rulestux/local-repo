@@ -14,6 +14,32 @@
 [[ -n "${_SYNC_SH_INCLUDED_}" ]] && return
 _SYNC_SH_INCLUDED_=1
 
+_sync_check_upstream_freshness() {
+    #----------------------------------------------------------------
+    # AVISO DE ATUALIZAÇÕES DISPONÍVEIS, TRANSPARENTE SÓ EM CASO DE FALHA
+    #
+    # Diferente de chamar update_run() diretamente, aqui o refresh do
+    # cache é feito em silêncio — as mensagens de rotina "Refreshing
+    # upstream cache..." só fazem sentido quando o administrador roda
+    # 'update' explicitamente, não como ruído de fundo dentro do sync.
+    # Mas a listagem de pacotes desatualizados em si
+    # (_update_list_outdated_packages) permanece visível: essa é a
+    # notificação real que o administrador precisa ver mesmo tendo
+    # chamado só 'sync'. Só a INDISPONIBILIDADE de rede é silenciada —
+    # se backend_refresh_upstream_cache falhar (sem internet, ou o
+    # repositório oficial fora do ar), a função retorna sem log nenhum,
+    # sem nunca falhar o comando 'sync' em si.
+    #----------------------------------------------------------------
+    _bootstrap_source_command "update"
+
+    if ! backend_refresh_upstream_cache &> /dev/null; then
+        return "${EXIT_SUCCESS}"
+    fi
+
+    _update_list_outdated_packages
+    return "${EXIT_SUCCESS}"
+}
+
 sync_run() {
     #----------------------------------------------------------------
     # MOTOR DE CONVERGÊNCIA E SINCRONISMO DE ESTADOS (SYNC)
@@ -51,6 +77,7 @@ sync_run() {
     if [[ -z "${drift_intent}" ]]; then
         log_info "All desired packages are already fully synchronized in the known state."
         rm -f "${clean_manifest}"
+        _sync_check_upstream_freshness
         return "${EXIT_SUCCESS}"
     fi
 
@@ -97,6 +124,7 @@ sync_run() {
     fi
 
     rm -f "${clean_manifest}"
+    _sync_check_upstream_freshness
 
     local total_pending
     total_pending=$(wc -l <<< "${drift_intent}")

@@ -234,3 +234,59 @@ backend_install_from_local_pool() {
     log_info "Package '${package_name}' successfully installed on host from local pool."
     return "${EXIT_SUCCESS}"
 }
+
+backend_refresh_upstream_cache() {
+    log_debug "Refreshing upstream APT cache against host-configured official repositories..."
+    apt-get update &> /dev/null
+    return $?
+}
+
+backend_query_upstream_version() {
+    local package_name="$1"
+    local candidate
+
+    candidate=$(apt-cache policy "${package_name}" 2>/dev/null | awk -F': ' '/Candidate:/ {print $2}')
+
+    if [[ -z "${candidate}" ]] || [[ "${candidate}" == "(none)" ]]; then
+        return "${EXIT_FAILURE}"
+    fi
+
+    echo "${candidate}"
+    return "${EXIT_SUCCESS}"
+}
+
+backend_parse_pool_version() {
+    #----------------------------------------------------------------
+    # Reaproveita a mesma convenção '<nome>_<versao>_<arquitetura>.deb'
+    # já usada por backend_parse_pool_identity(): remove o campo de
+    # nome (até o primeiro '_') e o campo de arquitetura (a partir do
+    # último '_'), restando exatamente a versão do meio.
+    #----------------------------------------------------------------
+    local filename="$1"
+    local base="${filename%.deb}"
+
+    if [[ "${base}" == "${filename}" ]]; then
+        return "${EXIT_FAILURE}"
+    fi
+
+    local without_name="${base#*_}"
+    local version="${without_name%_*}"
+
+    if [[ -z "${version}" ]] || [[ "${version}" == "${without_name}" ]]; then
+        return "${EXIT_FAILURE}"
+    fi
+
+    echo "${version}"
+    return "${EXIT_SUCCESS}"
+}
+
+backend_compare_versions() {
+    local local_version="$1"
+    local upstream_version="$2"
+
+    # 'dpkg --compare-versions' entende a semântica real de versionamento
+    # Debian (epoch:upstream-revisão), evitando comparação lexical
+    # ingênua onde "1.9" pareceria "maior" que "1.10".
+    dpkg --compare-versions "${upstream_version}" gt "${local_version}"
+    return $?
+}
