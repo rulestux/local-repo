@@ -187,12 +187,15 @@ backend_install_from_local_pool() {
     #----------------------------------------------------------------
     # INSTALAÇÃO NO HOST A PARTIR EXCLUSIVAMENTE DA POOL LOCAL
     #
-    # Usa 'Dir::Etc::sourcelist' para apontar o apt-get para uma fonte
-    # temporária única (a pool local), e 'Dir::Etc::sourceparts' para
-    # /dev/null para desabilitar qualquer sources.list.d/ configurado
-    # no host — garante que nenhum pacote seja buscado remotamente
-    # nesta operação, mantendo a promessa de instalação estritamente
-    # offline.
+    # Usa a sintaxe interna do apt-get 'Dir::Etc::sourcelist',
+    # com a flag -o (de Option), para apontar para uma fonte temporária
+    # única (a pool local), e 'Dir::Etc::sourceparts' para /dev/null
+    # para desabilitar qualquer sources.list.d/ configurado no host;
+    # garante que nenhum pacote seja buscado remotamente nesta operação,
+    # mantendo a promessa de instalação estritamente offline.
+    # Em '-o APT::Get::List-Cleanup="0"' a flag definida como "0" (falso)
+    # impede que o APT delete o cache dos repositórios normais do sistema
+    # do usuário durante essa operação isolada.
     #----------------------------------------------------------------
     local package_name="$1"
     local repo_root="$2"
