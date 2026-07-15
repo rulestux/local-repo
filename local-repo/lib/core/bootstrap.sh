@@ -187,6 +187,14 @@ bootstrap_run() {
             _bootstrap_source_command "install"
             install_run "$@" || exit "$?"
             ;;
+        update)
+            _bootstrap_source_command "update"
+            update_run "$@" || exit "$?"
+            ;;
+        upgrade)
+            _bootstrap_source_command "upgrade"
+            upgrade_run "$@" || exit "$?"
+            ;;
         stats|verify)
             log_warn "Command '${command}' is recognized but its pipeline stub is sleeping."
             ;;
