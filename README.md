@@ -129,6 +129,10 @@ sudo dnf install createrepo_c rpm dnf-plugins-core
 
 ## Instalação
 
+> [!WARNING]
+> O **local-repo** está em desenvolvimento ativo (versão `0.1`, pré-alpha). A arquitetura está definida e uma parte relevante do núcleo já funciona; o restante está planejado para versões futuras.
+> O script `install.sh` ainda não foi implementado, embora o `local-repo` já esteja funcional para distribuições Debian/Ubuntu (gerenciador de pacotes `apt`).
+
 ```bash
 git clone https://github.com/rulestux/local-repo.git
 cd local-repo
