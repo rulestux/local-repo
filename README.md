@@ -1,857 +1,266 @@
-<!-- ========================================================= -->
-<!-- local-repo README                                         -->
-<!-- ========================================================= -->
+<div align="center">
 
 # local-repo
 
-<div align="center">
+### Gerenciador declarativo de repositórios locais de pacotes para Linux
 
-## Gerenciador Declarativo de Repositórios Locais de Pacotes para Linux
+Crie, sincronize e transporte repositórios de pacotes portáteis para instalações **100% offline**, usando um modelo declarativo inspirado em ferramentas modernas de Infraestrutura como Código (IaC).
 
-### Crie, sincronize e mantenha repositórios Linux portáteis para instalações totalmente offline utilizando um modelo declarativo inspirado em ferramentas modernas de Infraestrutura como Código.
-
-**Offline-first • Declarativo • Portátil • Incremental • Modular**
-
-<br>
+**Offline-first • Declarativo • Portátil • Incremental**
 
 [![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Linux](https://img.shields.io/badge/Platform-Linux-black?logo=linux)
 ![Bash](https://img.shields.io/badge/Bash-5.0+-4EAA25?logo=gnubash)
-![Architecture](https://img.shields.io/badge/Architecture-Declarative-blue)
-![Design](https://img.shields.io/badge/Design-Offline--First-0A66C2)
-![Backend](https://img.shields.io/badge/Backend-APT-red)
-![Backend DNF](https://img.shields.io/badge/DNF-Planned-lightgrey)
-![Status](https://img.shields.io/badge/Status-Pre--Alpha-orange)
-![Documentation](https://img.shields.io/badge/Documentation-Architecture--Driven-success)
+![Backend APT](https://img.shields.io/badge/Backend-APT-red)
+![Backend DNF](https://img.shields.io/badge/DNF-Planejado-lightgrey)
+![Status](https://img.shields.io/badge/Status-Pré--Alpha-orange)
 
 </div>
 
 ---
 
-# Introdução
+## Índice
 
-## O que é o local-repo? (De forma simples)
-
-Imagine que você precisa instalar ferramentas de diagnóstico de hardware, monitoramento ou manutenção (como `htop`, `tmux` ou `smartmontools`) em um computador com Linux que **não tem nenhuma conexão com a internet** (computadores isolados por segurança, servidores em locais de difícil acesso ou laboratórios trancados). 
-
-Se você apenas baixar o arquivo `.deb` ou `.rpm` em um pen drive na sua máquina de trabalho e tentar instalar lá no cliente offline, o sistema provavelmente vai falhar acusando a falta de outros arquivos secundários (as famosas **dependências**).
-
-O **local-repo** resolve esse problema agindo como um "montador de repositório portátil inteligente":
-1. **Você declara o que quer:** Você simplesmente lista em um arquivo de texto os programas que precisa ter disponíveis.
-2. **Ele resolve o trabalho pesado:** Na sua máquina com internet, o `local-repo` calcula, localiza e baixa o programa escolhido **junto com absolutamente todas as dependências recursivas** que ele precisa para funcionar, organizando tudo em uma estrutura limpa de pastas.
-3. **Você transporta e usa:** Você copia essa pasta para um pen drive ou SSD externo, conecta na máquina isolada e pronto! Você tem um repositório local e completo para instalar o que quiser de forma 100% offline, rápida e segura.
-
----
-
-### Para quem é este projeto?
-
-* **Estudantes e Curiosos:** Que desejam aprender na prática como o ecossistema Linux gerencia árvores de pacotes por baixo dos panos ou precisam abastecer ambientes de estudos isolados.
-* **Técnicos e Analistas de Suporte:** Que realizam manutenção de campo em servidores isolados, redes industriais ou computadores corporativos restritos.
-* **Administradores de Sistemas e Engenheiros DevOps/SRE:** Que buscam automatizar a infraestrutura de forma previsível utilizando conceitos modernos de Infraestrutura como Código (IaC) e modelos declarativos aplicados a mídias físicas portáteis.
+1. [O que é o local-repo](#o-que-é-o-local-repo)
+2. [Estado atual do projeto](#estado-atual-do-projeto)
+3. [Para quem é este projeto](#para-quem-é-este-projeto)
+4. [Por que não usar apenas `apt-mirror` ou `reprepro`?](#por-que-não-usar-apenas-apt-mirror-ou-reprepro)
+5. [Requisitos](#requisitos)
+6. [Instalação](#instalação)
+7. [Primeiros passos](#primeiros-passos)
+8. [Referência de comandos](#referência-de-comandos)
+9. [Estrutura do repositório em disco](#estrutura-do-repositório-em-disco)
+10. [Arquivo de configuração](#arquivo-de-configuração)
+11. [Como o local-repo funciona por dentro](#como-o-local-repo-funciona-por-dentro)
+12. [Organização do código-fonte](#organização-do-código-fonte)
+13. [Princípios de design](#princípios-de-design)
+14. [Roadmap](#roadmap)
+15. [Licença](#licença)
 
 ---
 
-### Estado do Projeto
+## O que é o local-repo?
+
+Imagine que você precisa instalar ferramentas como `htop`, `tmux` ou `smartmontools` em uma máquina Linux **sem acesso à internet** — um servidor isolado, um laboratório trancado ou um notebook de campo.
+
+Copiar apenas o `.deb` do pacote para um pen drive normalmente não resolve: na hora de instalar, o sistema reclama de dependências que também precisam estar presentes.
+
+O **local-repo** resolve isso funcionando como um "montador de repositório portátil":
+
+1. **Você declara o que quer** — lista os pacotes desejados em um arquivo de texto simples (`packages.list`).
+2. **Ele resolve o trabalho pesado** — em uma máquina com internet, baixa cada pacote junto com **todas as dependências recursivas**, organizando tudo em uma pasta (`pool/`).
+3. **Você transporta e instala offline** — copia essa pasta para um pen drive/SSD, leva até a máquina isolada, e instala a partir do repositório local, sem precisar de rede.
+
+Não é um espelho (*mirror*) completo de uma distribuição — é um repositório sob medida, contendo só o que você pediu.
+
+---
+
+## Estado atual do projeto
 
 > [!WARNING]
-> 
-> O **local-repo** está em desenvolvimento ativo.
-> 
-> Embora a arquitetura principal esteja estabilizada e documentada, parte das funcionalidades descritas neste README encontra-se em implementação.
-> 
-> A documentação procura refletir tanto os recursos já disponíveis quanto a direção arquitetural planejada para as próximas versões.
-> 
-> O objetivo é manter uma evolução incremental sem comprometer os princípios fundamentais do projeto.
+> O **local-repo** está em desenvolvimento ativo (versão `0.1`, pré-alpha). A arquitetura está definida e uma parte relevante do núcleo já funciona; o restante está planejado para versões futuras.
+
+O que **já está implementado e funcional** hoje, com backend APT (Debian/Ubuntu):
+
+| Comando | O que faz |
+|---|---|
+| `init` | Cria a estrutura do repositório e o manifesto inicial |
+| `download` | Registra pacotes no estado desejado e sincroniza |
+| `install` | Faz `download` + instala o pacote no host a partir do repositório local |
+| `sync` | Converge o repositório com o que está declarado em `packages.list` |
+| `diff` | Mostra divergências entre o que foi declarado, o que é conhecido e o que existe fisicamente |
+| `update` | Atualiza o cache de metadados upstream e lista pacotes desatualizados |
+| `upgrade` | Baixa novamente pacotes desatualizados e limpa versões antigas |
+| `import` | Importa um repositório existente (`--from-iso`, `--from-directory`, `--from-tar`) |
+| `export` | Exporta o repositório para um `.tar.gz` de backup/transporte |
+
+O que ainda está **planejado**, com desenho arquitetural definido mas sem implementação (interface pode mudar):
+
+`remove`, `purge`, `verify`, `scan`, `prune`, `search`, `info`, `stats`, `clean`, backend DNF e a interface em modo texto (`local-repo-tui`).
+
+Este README documenta o comportamento real dos comandos já implementados e sinaliza claramente o que ainda é planejamento.
 
 ---
 
-## Um repositório local inteligente para ambientes Linux
+## Para quem é este projeto?
 
-O **local-repo** é um gerenciador declarativo de repositórios locais de pacotes desenvolvido para distribuições Linux.
-
-Seu objetivo é permitir que administradores de sistemas mantenham **coleções portáteis de pacotes**, juntamente com suas dependências, possibilitando instalações completamente **offline**, sincronização incremental e recuperação automática de estado.
-
-Ao contrário de ferramentas focadas em espelhamento completo (*mirroring*), o **local-repo** trabalha apenas com aquilo que realmente interessa ao administrador: um conjunto específico de pacotes descrito em um simples arquivo texto.
-
-O projeto foi concebido para seguir princípios modernos de engenharia de software, separando explicitamente:
-
-- o que o administrador deseja;
-- o que o sistema acredita possuir;
-- o que realmente existe em disco.
-
-Essa separação permite auditorias, reconstrução automática de inventários, detecção de divergências (*drift detection*) e maior confiabilidade operacional.
+- **Estudantes e curiosos** que querem entender na prática como o Linux resolve árvores de dependências, ou que precisam abastecer ambientes de estudo isolados.
+- **Técnicos e suporte de campo** que fazem manutenção em servidores isolados, redes industriais ou máquinas corporativas restritas.
+- **Administradores de sistemas e SREs/DevOps** que querem automatizar provisionamento offline de forma previsível, com uma abordagem declarativa parecida com IaC.
+- **Donos de home lab** (Proxmox, KVM, Docker, clusters de Raspberry Pi) que reinstalam VMs com frequência e não querem baixar os mesmos pacotes toda vez.
 
 ---
 
-### O problema
+## Por que não usar apenas `apt-mirror` ou `reprepro`?
 
-Administradores Linux frequentemente precisam instalar software em ambientes onde a Internet não está disponível ou não pode ser utilizada.
+O ecossistema Linux já tem ferramentas maduras para espelhamento e distribuição de repositórios — `reprepro`, `aptly`, `apt-mirror`, `apt-cacher-ng`. Elas continuam sendo a escolha certa para espelhar distribuições inteiras ou operar infraestrutura corporativa de pacotes.
 
-Alguns exemplos:
+O **local-repo** não compete com elas: ele resolve um problema mais específico — manter um **subconjunto pequeno e declarativo** de pacotes, com dependências resolvidas, pronto para ser transportado em uma mídia física e usado sem rede nem servidores.
 
-- servidores isolados (*air-gapped*);
-- laboratórios de ensino;
-- ambientes industriais;
-- datacenters restritos;
-- máquinas virtuais descartáveis;
-- notebooks utilizados em campo;
-- infraestrutura corporativa com acesso limitado à Internet.
-
-Embora distribuições Linux possuam excelentes gerenciadores de pacotes, manter um **repositório local pequeno, portátil e continuamente atualizado** ainda costuma exigir soluções improvisadas.
-
-Entre os problemas mais comuns estão:
-
-- baixar novamente pacotes já existentes;
-- perda do inventário do repositório;
-- dificuldade para transportar repositórios entre máquinas;
-- ausência de controle declarativo sobre quais pacotes devem existir;
-- duplicação desnecessária de arquivos;
-- dependência permanente de conexão com os repositórios oficiais;
-- necessidade de servidores dedicados para tarefas relativamente simples.
-
-Em muitos casos, as soluções existentes priorizam grandes espelhos (*mirrors*) ou infraestrutura corporativa complexa, quando o administrador deseja apenas manter um conjunto consistente de pacotes para reutilização futura.
-
----
-
-### A solução
-
-O **local-repo** propõe uma abordagem diferente.
-
-Em vez de perguntar continuamente **"o que existe?"**, ele parte da pergunta:
-
-> **"O que eu quero que exista?"**
-
-Essa resposta é descrita em um simples arquivo texto.
-
-A partir dele, o sistema calcula automaticamente as diferenças entre três camadas independentes de informação:
-
-```text
-Estado Desejado
-        │
-        ▼
-Estado Conhecido
-        │
-        ▼
-Estado Real
-```
-
-Sempre que necessário, o mecanismo de convergência sincroniza essas camadas.
-
-Na prática isso significa que o administrador apenas mantém uma lista declarativa de pacotes.
-
-Todo o restante — resolução de dependências, download incremental, atualização do inventário, reconstrução de índices e auditoria estrutural — passa a ser responsabilidade do próprio sistema.
-
-O resultado é um repositório local:
-
-- portátil;
-- reproduzível;
-- transparente;
-- auditável;
-- resiliente;
-- preparado para funcionar sem acesso à Internet.
-
----
-
-## Casos de uso
-
-O projeto foi concebido para atender desde usuários domésticos até administradores responsáveis por centenas de máquinas.
-
-### Administração corporativa
-
-- criação de repositórios internos;
-- redução do consumo de banda;
-- padronização de ambientes;
-- provisionamento rápido de novos servidores;
-- controle sobre versões distribuídas.
-
-### Ambientes sem acesso à Internet
-
-- servidores air-gapped;
-- redes militares;
-- laboratórios de pesquisa;
-- infraestrutura industrial;
-- ambientes críticos.
-
-### Laboratórios de ensino
-
-- instalação simultânea em diversas máquinas;
-- preparação de imagens para aulas;
-- redução de downloads repetitivos;
-- manutenção simplificada.
-
-### Home Labs
-
-Excelente para quem mantém:
-
-- Proxmox;
-- KVM;
-- VirtualBox;
-- VMware;
-- Docker Hosts;
-- clusters Raspberry Pi;
-- servidores domésticos.
-
-### Recuperação de desastres
-
-Após reinstalar um servidor basta apontar novamente para o repositório local.
-
-Não é necessário baixar novamente milhares de pacotes.
-
-### Desenvolvimento
-
-Muito útil para desenvolvedores que frequentemente:
-
-- recriam máquinas virtuais;
-- trabalham offline;
-- mantêm ambientes reproduzíveis;
-- utilizam diferentes distribuições Linux.
-
----
-
-## Posicionamento do projeto
-
-### O que o projeto NÃO pretende ser
-
-O **local-repo** não pretende substituir soluções corporativas completas de gerenciamento de repositórios.
-
-Não faz parte do escopo:
-
-- espelhamento completo de distribuições;
-- servidores HTTP próprios;
-- gerenciamento de usuários;
-- autenticação;
-- alta disponibilidade;
-- bancos de dados SQL;
-- interfaces web administrativas.
-
-Seu foco é oferecer uma solução simples, robusta e portátil para gerenciamento de repositórios locais.
-
-O ecossistema Linux possui diversas ferramentas maduras para criação, espelhamento e distribuição de repositórios de pacotes. Projetos como `reprepro`, `aptly`, `apt-mirror` e `apt-cacher-ng` atendem muito bem a diferentes necessidades operacionais.
-
-O **local-repo** não pretende substituir essas soluções. Seu objetivo é oferecer uma abordagem complementar, focada em repositórios locais declarativos, portabilidade, sincronização incremental e operação offline, mantendo uma arquitetura simples, transparente e baseada apenas em arquivos texto.
-
-A tabela abaixo compara o foco de cada solução em relação aos objetivos deste projeto.
-
-| Característica | local-repo | reprepro | aptly  | apt-mirror | apt-cacher-ng |
-|----------------|:----------:|:--------:|:------:|:----------:|:-------------:|
+| Característica | local-repo | reprepro | aptly | apt-mirror | apt-cacher-ng |
+|---|:---:|:---:|:---:|:---:|:---:|
 | Operação offline | ✅ | ✅ | ✅ | ⚠️ | ⚠️ |
-| Modelo declarativo | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Portabilidade do repositório | ✅ | ⚠️ | ⚠️ | ❌ | ❌ |
-| Sincronização incremental | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Recuperação automática do inventário | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Separação entre estado desejado, conhecido e real | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Modelo declarativo (lista de pacotes desejados) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Pensado para portabilidade (pen drive / SSD) | ✅ | ⚠️ | ⚠️ | ❌ | ❌ |
 | Sem banco de dados | ✅ | ✅ | ❌ | ✅ | ❌ |
-| Sem serviços residentes | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Sem serviço residente (daemon) | ✅ | ✅ | ✅ | ✅ | ❌ |
 
-> **Nota:** esta tabela destaca diferenças de abordagem e escopo, e não estabelece uma classificação de qualidade entre as ferramentas.
-
----
-
-# Índice
-
-- [Requisitos](#requisitos)
-	- [Backend APT](#backend-apt)
-	- [Backend DNF](#backend-dnf-planejado)
-- [Instalação](#instalação)
-- [Primeiros Passos](#primeiros-passos)
-- [Comandos](#comandos)
-- [Arquivos de Configuração](#arquivos-de-configuração)
-- [Arquitetura](#arquitetura)
-- [Camadas da Arquitetura](#camadas-da-arquitetura)
-- [Princípios Arquiteturais](#princípios-arquiteturais)
+> A tabela compara escopo e abordagem, não qualidade — cada ferramenta resolve um problema diferente.
 
 ---
 
-# Requisitos
+## Requisitos
 
-## Sistema Operacional
+**Sistema operacional:** Linux, com Bash 5.0+, `coreutils`, `util-linux`, `grep`, `sed`, `awk`.
 
-- Linux
-- Bash 5.0+
-- util-linux
-- coreutils
-- grep
-- sed
-- awk
-
----
-
-## Backend APT
-
-Pacotes necessários:
+**Backend APT** (Debian/Ubuntu — funcional hoje):
 
 ```bash
-sudo apt install \
-    dpkg-dev \
-    apt-utils \
-    dpkg \
-    fdupes \
-    util-linux
+sudo apt install dpkg-dev apt-utils dpkg fdupes util-linux
+```
+
+**Backend DNF** (Fedora/RHEL — planejado, ainda não implementado):
+
+```bash
+sudo dnf install createrepo_c rpm dnf-plugins-core
 ```
 
 ---
 
-## Backend DNF *(Planejado)*
-
-```bash
-sudo dnf install \
-    createrepo_c \
-    rpm \
-    dnf-plugins-core
-```
-
----
-
-# Instalação
-
-> Em breve.
-
-> [!WARNING]
-> O **local-repo** encontra-se em desenvolvimento ativo.
->
-> A interface de linha de comando e a arquitetura já estão definidas, porém parte das funcionalidades descritas abaixo será implementada nas próximas versões.
->
-> Este README documenta tanto recursos já implementados quanto recursos planejados para a versão estável.
-
-Quando disponível, bastará executar:
+## Instalação
 
 ```bash
 git clone https://github.com/rulestux/local-repo.git
-
 cd local-repo
-
 sudo ./install.sh
 ```
 
+O script `install.sh` copia os arquivos para o sistema e deixa o comando `local-repo` disponível no `PATH`.
+
 ---
 
-# Primeiros Passos
+## Primeiros passos
 
-## 1. Inicialize um repositório
+### 1. Inicialize um repositório
 
 ```bash
 sudo local-repo init
 ```
 
-O comando cria automaticamente:
+Cria a estrutura de pastas em `${REPO_BASE_DIR}` (por padrão `/var/local-repo`, ajustável via configuração — veja [Arquivo de configuração](#arquivo-de-configuração)) e um `packages.list` de exemplo comentado.
 
-```text
-REPO_BASE_DIR/
+### 2. Declare os pacotes que você quer
 
-├── pool/
-│
-├── state/
-│   ├── packages.list
-│   └── packages.state
-│
-├── log/
-│
-└── run/
-```
-
----
-
-## 2. Adicione um pacote
+Edite `state/packages.list` manualmente, ou use `download` para adicionar pacotes pela linha de comando:
 
 ```bash
-sudo local-repo download curl
+sudo local-repo download htop tmux
 ```
 
-O pacote passa a fazer parte do estado desejado.
+Isso registra os pacotes no manifesto e já dispara a sincronização (baixa o pacote e todas as suas dependências para `pool/`).
 
-Caso ainda não exista na pool local, será baixado juntamente com suas dependências.
-
----
-
-## 3. Sincronize o repositório
+### 3. Sincronize a qualquer momento
 
 ```bash
 sudo local-repo sync
 ```
 
-O mecanismo de convergência compara:
+Compara `packages.list` (o que você quer) com `packages.state` (o que já foi baixado) e baixa apenas o que estiver faltando — sem repetir downloads desnecessários.
 
-```
-packages.list
-
-↓
-
-packages.state
-
-↓
-
-pool/
-```
-
-e baixa apenas aquilo que estiver ausente.
-
----
-
-## 4. Instale utilizando o repositório local
+### 4. Instale usando o repositório local
 
 ```bash
 sudo local-repo install curl
 ```
 
-Após garantir que o repositório esteja consistente, o pacote é instalado utilizando exclusivamente a infraestrutura local.
+Garante que `curl` esteja convergido na pool local e então o instala no host **usando apenas os arquivos locais**, sem tocar na rede.
 
----
-
-## Exemplo de Fluxo Completo
-
-```text
-Administrador
-
-↓
-
-local-repo download docker.io
-
-↓
-
-Atualiza packages.list
-
-↓
-
-Executa Sync
-
-↓
-
-Resolve dependências
-
-↓
-
-Baixa arquivos
-
-↓
-
-Atualiza packages.state
-
-↓
-
-Reconstrói Packages.gz
-
-↓
-
-Pronto.
-```
-
----
-
-# Comandos
-
-## Criando um novo repositório
-
-```bash
-sudo local-repo init
-```
-
-Saída esperada:
-
-```text
-✔ Detectando distribuição...
-
-✔ Detectando backend...
-
-✔ Criando estrutura...
-
-✔ Inicializando estado...
-
-✔ Repositório criado com sucesso.
-```
-
----
-
-## Baixando um pacote
-
-```bash
-sudo local-repo download git
-```
-
-Saída esperada:
-
-```text
-✔ Registrando intenção...
-
-✔ Calculando diferenças...
-
-✔ Resolvendo dependências...
-
-✔ Baixando pacotes...
-
-✔ Atualizando inventário...
-
-✔ Reconstruindo índices...
-
-✔ Operação concluída.
-```
-
----
-
-## Importando um repositório existente
-
-Além de criar um repositório vazio, o **local-repo** pode importar repositórios já existentes a partir de diferentes fontes.
-
-Durante a importação, o sistema adapta automaticamente a estrutura ao modelo interno do projeto, reconstruindo o inventário e preparando o repositório para futuras sincronizações.
-
-### A partir de uma imagem ISO
-
-```bash
-sudo local-repo import --from-iso debian-13.1.0-amd64-DVD-1.iso
-```
-
-Fluxo da operação:
-
-```text
-Imagem ISO
-
-↓
-
-Montagem temporária
-
-↓
-
-Validação da estrutura
-
-↓
-
-Importação da pool
-
-↓
-
-Reconstrução do inventário
-
-↓
-
-Reconstrução dos índices
-
-↓
-
-Repositório pronto
-```
-
-### A partir de um diretório
-
-Importa um repositório já existente armazenado em outro diretório.
-
-```bash
-sudo local-repo import --from-directory /srv/repository
-```
-
-### A partir de um arquivo compactado
-
-Também é possível restaurar um repositório previamente exportado.
-
-```bash
-sudo local-repo import --from-tar backup.tar.gz
-```
-
-Durante a importação, o sistema:
-
-- valida a origem dos dados;
-- importa os pacotes para a `pool/`;
-- reconstrói o inventário (`packages.state`);
-- atualiza os índices do repositório;
-- verifica a integridade da estrutura importada.
-
-Saída esperada:
-
-```text
-✔ Validando origem...
-
-✔ Importando pacotes...
-
-✔ Reconstruindo inventário...
-
-✔ Atualizando índices...
-
-✔ Verificando integridade...
-
-✔ Importação concluída com sucesso.
-```
-
-Após a importação, o repositório passa a ser gerenciado normalmente pelos comandos `sync`, `verify`, `update` e `upgrade`.
-
----
-
-## Exportando um repositório
-
-O **local-repo** também permite exportar repositórios para facilitar backups, migrações ou distribuição entre máquinas.
-
-A exportação preserva a estrutura necessária para que o repositório possa ser restaurado posteriormente utilizando o comando `import`.
-
-### Exportando para um arquivo compactado
-
-```bash
-sudo local-repo export --to-tar backup-2026-07-07.tar.gz
-```
-
-Fluxo da operação:
-
-```text
-Repositório
-
-↓
-
-Validação
-
-↓
-
-Compactação
-
-↓
-
-Arquivo .tar.gz
-```
-
-Durante a exportação, o sistema:
-
-- verifica a integridade do repositório;
-- inclui a `pool/`;
-- inclui os arquivos de estado;
-- inclui a configuração necessária para restauração;
-- gera um arquivo compactado pronto para transporte ou armazenamento.
-
-Saída esperada:
-
-```text
-✔ Validando repositório...
-
-✔ Coletando arquivos...
-
-✔ Compactando...
-
-✔ Gerando backup...
-
-✔ Exportação concluída.
-```
-
-O arquivo gerado pode ser restaurado posteriormente com:
-
-```bash
-sudo local-repo import --from-tar backup-2026-07-07.tar.gz
-```
-
----
-
-## Instalando um pacote
-
-```bash
-sudo local-repo install git
-```
-
-Fluxo interno:
-
-```text
-download()
-
-↓
-
-sync()
-
-↓
-
-backend_install()
-```
-
----
-
-## Atualizando os metadados
-
-```bash
-sudo local-repo update
-```
-
-Exemplo:
-
-```text
-Pacotes desatualizados
-
-----------------------
-
-curl
-
-git
-
-docker.io
-
-openssl
-```
-
----
-
-## Atualizando o repositório
-
-```bash
-sudo local-repo upgrade
-```
-
-O comando:
-
-- baixa novas versões;
-- remove versões antigas;
-- atualiza o inventário;
-- reconstrói os índices.
-
----
-
-## Verificando a integridade
-
-```bash
-sudo local-repo verify
-```
-
-Exemplo:
-
-```text
-Verificando checksums...
-
-Verificando inventário...
-
-Verificando duplicidades...
-
-Nenhum problema encontrado.
-```
-
----
-
-## Reconstruindo o inventário
-
-```bash
-sudo local-repo scan
-```
-
-Caso o arquivo `packages.state` seja perdido ou corrompido, o sistema reconstrói automaticamente o inventário utilizando os próprios arquivos existentes na `pool/`.
-
----
-
-## Detectando divergências
+### 5. Veja o que está fora de sincronia
 
 ```bash
 local-repo diff
 ```
 
-Exemplo:
+Saída típica:
 
 ```text
-Estado Desejado
+=== Missing Packages (Desired but not synced) ===
++ docker.io|amd64
 
----------------
-
-curl
-
-git
-
-docker
-
-Estado Conhecido
-
-----------------
-
-curl
-
-git
-
-Diferenças
-
-----------
-
-+ docker
+=== Orphaned Local Files (Present in pool but untracked) ===
+! libfoo|amd64
 ```
+
+`+` marca o que está declarado mas ainda não foi baixado; `!` marca arquivos presentes na `pool/` que não constam no inventário.
 
 ---
 
-## Removendo pacotes órfãos
+## Referência de comandos
 
-```bash
-sudo local-repo prune
-```
+Comandos com ✅ estão implementados e funcionam com o backend APT hoje. Comandos com 🚧 fazem parte do desenho arquitetural, mas ainda não foram implementados.
 
-Exemplo:
+| Comando | Status | Descrição |
+|---|:---:|---|
+| `init` | ✅ | Inicializa um novo repositório (pastas + manifesto inicial) |
+| `download <pkg>[|arch] ...` | ✅ | Adiciona pacotes ao estado desejado e sincroniza |
+| `install <pkg>` | ✅ | `download` + instalação no host a partir do repositório local |
+| `sync` | ✅ | Converge `pool/` com o que está em `packages.list` |
+| `diff` | ✅ | Mostra divergências entre desejado, conhecido e real |
+| `update` | ✅ | Atualiza cache upstream e lista pacotes desatualizados na pool |
+| `upgrade` | ✅ | Baixa versões atualizadas e remove as obsoletas da pool |
+| `import --from-iso <arquivo.iso>` | ✅ | Importa pacotes a partir de uma imagem ISO |
+| `import --from-directory <dir>` | ✅ | Importa pacotes a partir de um diretório existente |
+| `import --from-tar <arquivo.tar.gz>` | ✅ | Restaura um repositório exportado anteriormente |
+| `export --to-tar <arquivo.tar.gz>` | ✅ | Exporta o repositório inteiro para backup/transporte |
+| `remove <pkg>` | 🚧 | Remover pacote do host mantendo-o no repositório |
+| `purge <pkg>` | 🚧 | Remover pacote definitivamente do repositório |
+| `verify` | 🚧 | Auditoria de integridade e checksums (tipo `fsck`) |
+| `scan` | 🚧 | Reconstruir `packages.state` a partir dos arquivos físicos em `pool/` |
+| `prune` | 🚧 | Remover interativamente pacotes órfãos da pool |
+| `search <termo>` | 🚧 | Pesquisar pacotes no repositório local |
+| `info <pkg>` | 🚧 | Exibir metadados de um pacote |
+| `stats` | 🚧 | Painel com estatísticas do repositório |
+| `clean` | 🚧 | Limpar arquivos temporários e locks |
+| `local-repo-tui` | 🚧 | Interface em modo texto (baseada em `dialog`) sobre os mesmos comandos |
+
+---
+
+## Estrutura do repositório em disco
+
+Cada repositório criado com `local-repo init` segue este layout:
 
 ```text
-Os seguintes pacotes não pertencem mais ao estado desejado:
-
-libfoo
-
-libbar
-
-Deseja removê-los?
-
-[y/N]
+REPO_BASE_DIR/
+├── pool/                     # Pacotes físicos (.deb) já baixados — a fonte real da verdade
+├── state/
+│   ├── packages.list         # Estado desejado — único arquivo editável manualmente
+│   └── packages.state        # Estado conhecido — inventário gerado automaticamente
+├── run/
+│   └── local-repo.lock       # Trava de concorrência (flock), evita execuções simultâneas
+└── log/
+    └── local-repo.log        # Log estruturado das operações
 ```
 
----
-
-## Purgando um pacote
-
-```bash
-sudo local-repo purge firefox
-```
-
-Fluxo:
+### Formato de `packages.list`
 
 ```text
-packages.list
-
-↓
-
-packages.state
-
-↓
-
-pool/
-
-↓
-
-Packages.gz
+# Uma entrada por linha, várias por linha, ou pipe explícito de arquitetura
+tmux htop vim
+curl|amd64
+nginx|armhf
 ```
 
----
+Se a arquitetura for omitida, o local-repo usa automaticamente a arquitetura nativa do host.
 
-## Referência da CLI
+### Formato de `packages.state`
 
-| Comando | Descrição |
-|----------|-----------|
-| `init` | Inicializa um novo repositório |
-| `download` | Baixa pacotes sem instalar |
-| `install` | Baixa e instala utilizando o repositório local |
-| `remove` | Remove do sistema operacional |
-| `purge` | Remove permanentemente do repositório |
-| `sync` | Converge os estados |
-| `update` | Atualiza metadados remotos |
-| `upgrade` | Atualiza pacotes locais |
-| `verify` | Verifica integridade |
-| `scan` | Reconstrói inventário |
-| `diff` | Detecta divergências |
-| `prune` | Remove órfãos |
-| `search` | Pesquisa pacotes |
-| `info` | Exibe metadados |
-| `stats` | Estatísticas do repositório |
-| `clean` | Remove arquivos temporários |
+É gerado e mantido pelo próprio sistema — não deve ser editado à mão. No estado atual da implementação, cada linha contém `nome|arquitetura`, ordenada e sem duplicatas, refletindo o que já foi convergido para a `pool/`. (Rastreamento adicional por versão/data faz parte do desenho arquitetural, mas ainda não está implementado no formato do arquivo.)
 
 ---
 
-# Dicas
+## Arquivo de configuração
 
-✅ Versione o arquivo `packages.list` em Git.
-
-✅ Faça backup periódico da pasta `pool/`.
-
-✅ Utilize `verify` antes de exportar um repositório.
-
-✅ Execute `update` regularmente.
-
-✅ Utilize `prune` para remover pacotes obsoletos.
-
-✅ Utilize `scan` apenas quando houver necessidade de reconstrução do inventário.
-
----
-
-# Arquivos de Configuração
-
-## Configuração global
-
-```
+```text
 /etc/local-repo/local-repo.conf
 ```
 
@@ -859,728 +268,127 @@ Exemplo:
 
 ```bash
 REPO_BASE_DIR="/srv/local-repo"
-
-LOG_LEVEL="INFO"
-
 BACKEND="apt"
+LOG_LEVEL="INFO"
 ```
+
+O arquivo é lido linha a linha por um parser próprio (não é feito `source` direto nele), e apenas estas chaves são reconhecidas:
+
+| Chave | Valores aceitos | Efeito |
+|---|---|---|
+| `REPO_BASE_DIR` | caminho absoluto | Onde o repositório vive (`pool/`, `state/`, `run/`, `log/`) |
+| `BACKEND` | `apt` (`dnf` planejado) | Backend usado para resolver e baixar pacotes |
+| `LOG_LEVEL` | `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL` | Verbosidade dos logs |
+
+Se o arquivo não existir, o local-repo usa `/var/local-repo` como diretório padrão do repositório.
 
 ---
 
-## Estado Desejado
+## Como o local-repo funciona por dentro
 
-```
-state/packages.list
-```
+### O modelo dos três estados
 
-Exemplo:
+A ideia central do projeto é separar **intenção**, **conhecimento** e **realidade** em três camadas independentes:
 
 ```text
-curl|amd64
-
-git|amd64
-
-docker.io|amd64
+packages.list  →  o que você DECLAROU querer      (Estado Desejado)
+packages.state →  o que o sistema SABE que baixou  (Estado Conhecido)
+pool/          →  o que EXISTE fisicamente em disco (Estado Real)
 ```
 
----
+Comandos como `sync` e `download` fazem esses estados **convergirem**: comparam o desejado com o conhecido e baixam apenas a diferença. O comando `diff` faz essa comparação de forma passiva, sem alterar nada — só relata os desvios.
 
-## Estado Conhecido
+Essa separação é o que permite, por exemplo, que um inventário perdido seja reconstruído a partir dos arquivos físicos (comando `scan`, planejado), ou que divergências sejam auditadas sem depender de um banco de dados.
 
-```
-state/packages.state
-```
+### Abstração de backend
 
-Exemplo:
+Toda interação com o gerenciador de pacotes da distribuição (`apt`, `dpkg`, futuramente `dnf`) passa por uma camada de abstração (`lib/backend/`). O núcleo do sistema (`lib/core/`) não sabe nada sobre APT ou DNF — ele só conhece a interface comum definida em `lib/api/backend-api.sh`. Isso é o que permite adicionar um novo backend sem reescrever o restante da aplicação.
+
+### Ordem de inicialização
+
+Toda execução do `local-repo` segue sempre a mesma sequência determinística, carregada pelo `bootstrap.sh`:
 
 ```text
-curl|8.16.0|amd64|manual|2026-07-06
-
-git|2.51.0|amd64|manual|2026-07-06
-
-libssl3|3.0.13|amd64|dependency|2026-07-06
+local-repo → bootstrap.sh → constants.sh → util.sh → log.sh → errors.sh
+           → lock.sh → validation.sh → config.sh → environment.sh
+           → backend.sh → dispatcher → comando solicitado
 ```
+
+Cada módulo depende apenas das camadas carregadas antes dele — isso reduz acoplamento e torna o comportamento previsível e mais fácil de testar.
+
+### Concorrência
+
+Operações que modificam o repositório adquirem uma trava via `flock` (`run/local-repo.lock`), evitando que duas execuções simultâneas corrompam o estado.
+
+### Portabilidade
+
+Como nenhum estado depende de caminhos absolutos fixos, o repositório inteiro pode ser copiado para outro pen drive, outro diretório ou outra máquina — basta apontar `REPO_BASE_DIR` para o novo local.
 
 ---
 
-## Logs
-
-```
-log/local-repo.log
-```
-
-Exemplo:
+## Organização do código-fonte
 
 ```text
-INFO Bootstrap iniciado
-
-INFO Backend detectado: apt
-
-INFO Sync iniciado
-
-INFO Inventário atualizado
-```
-
----
-
-## Lock
-
-```
-run/local-repo.lock
-```
-
-Criado automaticamente durante operações críticas.
-
----
-
-# Arquitetura
-
-A arquitetura do **local-repo** foi concebida para privilegiar simplicidade operacional, previsibilidade e facilidade de manutenção.
-
-Desde o início do projeto, algumas decisões foram consideradas inegociáveis:
-
-- separação rigorosa de responsabilidades;
-- ausência de componentes residentes (*daemons*);
-- ausência de bancos de dados;
-- armazenamento transparente baseado em arquivos texto;
-- desacoplamento entre a lógica do sistema e o gerenciador de pacotes da distribuição;
-- possibilidade de expansão para múltiplos ecossistemas Linux.
-
-O resultado é uma arquitetura modular, onde cada componente possui uma responsabilidade única e bem definida.
-
----
-
-## Visão Geral
-
-```mermaid
-flowchart TD
-
-CLI["CLI (local-repo)"]
-TUI["TUI (local-repo-tui)"]
-BOOT["Bootstrap"]
-CORE["Core Engine"]
-BACKEND["Backend Abstraction"]
-APT["APT Backend"]
-DNF["DNF Backend (Planejado)"]
-COMMANDS["Command Modules"]
-STATE["Repository State"]
-
-CLI --> BOOT
-TUI --> BOOT
-
-BOOT --> CORE
-BOOT --> BACKEND
-BOOT --> COMMANDS
-
-BACKEND --> APT
-BACKEND --> DNF
-
-COMMANDS --> STATE
-```
-
-Todo o sistema é inicializado por um **dispatcher extremamente pequeno**, cuja única responsabilidade consiste em carregar o ecossistema e transferir o controle para o mecanismo de bootstrap.
-
-A partir desse ponto, cada subsistema assume uma função específica.
-
----
-
-## Fluxo de Inicialização
-
-O ciclo de vida da aplicação foi projetado para seguir sempre a mesma sequência.
-
-Isso torna o comportamento previsível, facilita testes e reduz efeitos colaterais.
-
-```mermaid
-flowchart TD
-
-A["local-repo"]
-
---> B["bootstrap.sh"]
-
---> C["constants.sh"]
-
---> D["util.sh"]
-
---> E["log.sh"]
-
---> F["errors.sh"]
-
---> G["lock.sh"]
-
---> H["validation.sh"]
-
---> I["config.sh"]
-
---> J["environment.sh"]
-
---> K["backend.sh"]
-
---> L["Dispatcher"]
-
---> M["Command"]
-```
-
-A ordem de carregamento é determinística.
-
-Cada módulo depende exclusivamente das camadas inferiores, reduzindo acoplamentos desnecessários.
-
----
-
-## Organização do Projeto
-
-```
 local-repo/
-│
-├── local-repo
-├── local-repo-tui
-│
+├── local-repo              # Dispatcher — ponto de entrada da CLI, sem lógica de negócio
+├── local-repo-tui           # Wrapper de interface em modo texto (planejado)
 ├── lib/
-│   │
-│   ├── core/
-│   ├── backend/
+│   ├── core/                # Infraestrutura compartilhada
+│   │   ├── bootstrap.sh      # Orquestrador de carregamento
+│   │   ├── constants.sh      # Constantes e valores padrão
+│   │   ├── config.sh         # Parser do arquivo .conf
+│   │   ├── validation.sh     # Sanitização do manifesto
+│   │   ├── environment.sh    # Checagem de dependências do host
+│   │   ├── log.sh             # Sistema de logging
+│   │   ├── errors.sh          # Tratamento de erros e traps
+│   │   ├── lock.sh            # Controle de concorrência (flock)
+│   │   └── util.sh            # Funções utilitárias
 │   ├── api/
-│   └── commands/
-│
-├── tui/
-│
+│   │   └── backend-api.sh    # Contrato que todo backend deve implementar
+│   ├── backend/
+│   │   ├── backend.sh         # Detecção e carregamento dinâmico do backend
+│   │   ├── apt.sh              # Driver para Debian/Ubuntu (implementado)
+│   │   └── dnf.sh              # Driver para Fedora/RHEL (planejado)
+│   └── commands/              # Um módulo por comando (init.sh, sync.sh, diff.sh...)
+├── tui/                     # Telas da interface em modo texto (planejado)
 ├── install.sh
 ├── uninstall.sh
-│
 └── README.md
 ```
 
-Cada diretório representa um domínio específico da aplicação.
+Cada comando tem seu próprio arquivo em `lib/commands/`, evitando um script único e gigantesco — isso facilita revisar, testar e adicionar comandos novos isoladamente.
 
 ---
 
-# Camadas da Arquitetura
+## Princípios de design
 
-## Dispatcher
+Decisões que guiam o projeto e que qualquer contribuição deve respeitar:
 
-Responsável apenas por iniciar a aplicação.
-
-Ele não:
-
-- contém regras de negócio;
-- descobre diretórios;
-- conhece backends;
-- manipula estados.
-
-Sua única responsabilidade é iniciar o Bootstrap.
+- **Offline-first** — toda operação que não depende estritamente de rede deve funcionar sem internet.
+- **Declaratividade** — o administrador diz *o que* quer; o sistema decide *como* chegar lá.
+- **Recuperabilidade** — nenhum arquivo derivado (índices, inventário) deve ser a única fonte da verdade; tudo deve poder ser reconstruído a partir dos dados físicos.
+- **Transparência** — estados armazenados em texto plano, legíveis e manipuláveis com `grep`, `awk`, `sed`.
+- **Idempotência** — rodar `sync` duas vezes seguidas não deve baixar nada duas vezes.
+- **Portabilidade** — nenhuma dependência de caminho absoluto fixo do host.
+- **Sem daemon, sem banco de dados, sem servidor web** — menor superfície, menor consumo de recursos, mais fácil de auditar.
+- **Simplicidade antes de funcionalidades** — preferir a solução mais simples sempre que houver equivalência funcional.
 
 ---
 
-## Bootstrap
+## Roadmap
 
-O Bootstrap é o verdadeiro orquestrador do sistema.
+Ordem aproximada do que falta para a versão estável:
 
-Suas responsabilidades incluem:
+1. Comandos de manutenção do host: `remove`, `purge`, `prune`, `clean`.
+2. Auditoria e recuperação: `verify`, `scan`.
+3. Consulta: `search`, `info`, `stats`.
+4. Backend DNF (`dnf.sh`), para Fedora/RHEL.
+5. Interface em modo texto `local-repo-tui`, como camada visual sobre a CLI existente.
 
-- localizar a raiz do projeto;
-- carregar os módulos do Core;
-- inicializar o sistema de logs;
-- carregar configurações;
-- validar o ambiente;
-- adquirir travas de concorrência;
-- descobrir o backend ativo;
-- iniciar o dispatcher de comandos.
-
-Toda inicialização do framework passa obrigatoriamente por ele.
+O objetivo de longo prazo é manter a mesma filosofia — simplicidade, transparência e portabilidade — à medida que essas funcionalidades forem chegando, em vez de acumular funcionalidades às custas da previsibilidade do sistema.
 
 ---
 
-## Core
+## Licença
 
-O Core reúne toda a infraestrutura compartilhada da aplicação.
-
-Entre seus componentes estão:
-
-| Módulo | Responsabilidade |
-|---------|------------------|
-| constants.sh | Constantes globais |
-| config.sh | Configuração |
-| validation.sh | Validações |
-| environment.sh | Auditoria do ambiente |
-| log.sh | Logging |
-| errors.sh | Tratamento de exceções |
-| lock.sh | Controle de concorrência |
-| util.sh | Funções utilitárias |
-
-Esses módulos não conhecem detalhes sobre APT ou DNF.
-
----
-
-## Backend
-
-Uma das principais decisões arquiteturais do projeto foi desacoplar completamente a lógica do sistema operacional.
-
-Em vez de espalhar chamadas para `apt`, `dpkg` ou `dnf` pelo código, toda interação ocorre através de uma camada de abstração.
-
-```mermaid
-flowchart TD
-
-A[Core]
-
--->
-
-B[Backend API]
-
--->
-
-C[APT Driver
-
-Core]
-
--->
-
-D[Backend API]
-
--->
-
-E[DNF Driver]
-```
-
-Isso permite que novos gerenciadores de pacotes sejam adicionados sem alterações significativas no restante da aplicação.
-
----
-
-## Módulos
-
-Cada comando possui um módulo próprio.
-
-Exemplos:
-
-```
-download.sh
-
-install.sh
-
-sync.sh
-
-verify.sh
-
-scan.sh
-
-stats.sh
-```
-
-Isso evita arquivos gigantescos e facilita manutenção.
-
----
-
-# Princípios Arquiteturais
-
-O desenvolvimento do **local-repo** é orientado por um conjunto de princípios que norteiam todas as decisões de arquitetura e implementação.
-
-Esses princípios procuram garantir que o projeto permaneça simples, previsível e sustentável à medida que evolui.
-
----
-
-## Offline-first
-
-O acesso à Internet deve ser tratado como um recurso opcional. Todas as operações possíveis são executáveis sem acesso à Internet.
-
-Sempre que possível, operações como instalação, auditoria, reconstrução do inventário e consultas de metadados devem funcionar integralmente utilizando apenas os dados disponíveis no repositório local.
-
-Conexões com repositórios remotos devem ocorrer exclusivamente quando forem realmente necessárias para sincronização ou atualização.
-
----
-
-## Declaratividade
-
-O administrador informa **o estado desejado**, e não a sequência de passos para alcançá-lo. O sistema decide **como convergir** para esse estado.
-
-Em vez de executar operações imperativas repetidamente, basta manter um manifesto declarativo (`packages.list`).
-
-Cabe ao sistema determinar quais ações são necessárias para convergir o ambiente até esse estado.
-
----
-
-## Recuperabilidade
-
-Todo artefato derivado deve poder ser reconstruído.
-
-Isso significa que informações armazenadas em índices, inventários ou bancos textuais nunca devem ser a única fonte da verdade.
-
-Caso um arquivo seja perdido ou corrompido, o sistema deve ser capaz de regenerá-lo utilizando os dados físicos disponíveis.
-
----
-
-## Transparência
-
-Os estados internos do sistema pertencem ao administrador.
-
-Por essa razão, são armazenados em formatos abertos e legíveis, permitindo inspeção e manipulação utilizando ferramentas tradicionais do ecossistema UNIX, como `grep`, `awk`, `sed`, `sort` e `cut`.
-
-O projeto evita formatos binários ou estruturas proprietárias sempre que possível.
-
----
-
-## Modularidade
-
-Cada componente deve possuir uma responsabilidade claramente definida.
-
-A lógica de negócio permanece desacoplada das particularidades de cada distribuição Linux, permitindo que múltiplos backends (APT, DNF etc.) sejam incorporados sem alterações significativas na arquitetura principal.
-
----
-
-## Determinismo
-
-Dadas as mesmas entradas, o sistema deve produzir sempre o mesmo estado final.
-
-Esse princípio simplifica auditorias, facilita testes e reduz comportamentos inesperados.
-
-Sempre que possível, decisões implícitas ou dependentes do ambiente devem ser evitadas.
-
----
-
-## Idempotência
-
-Operações repetidas não devem produzir efeitos colaterais desnecessários.
-
-Executar um comando de sincronização sobre um repositório já sincronizado, por exemplo, deve resultar apenas na verificação do estado existente, sem downloads redundantes ou modificações desnecessárias.
-
----
-
-## Incrementalidade
-
-O sistema deve reutilizar tudo aquilo que já está disponível localmente.
-
-Downloads, reconstruções e atualizações devem ocorrer apenas quando houver uma diferença real entre o estado atual e o estado desejado.
-
-Esse princípio reduz consumo de banda, tempo de execução e espaço em disco.
-
----
-
-## Portabilidade
-
-Todo o repositório deve ser facilmente transportável entre diferentes máquinas ou dispositivos de armazenamento:
-
-- SSD externo;
-- HD externo;
-- pendrive;
-- outro servidor;
-- outro diretório.
-
-A estrutura do projeto procura evitar dependências de caminhos absolutos ou configurações específicas do sistema hospedeiro, permitindo que um repositório seja movido para outro ambiente com o mínimo de intervenção.
-
----
-
-## Auditabilidade
-
-As decisões tomadas pelo sistema devem ser compreensíveis e verificáveis.
-
-Sempre que possível, operações importantes geram registros em log e mantêm seus estados representados de forma explícita.
-
-O administrador deve conseguir responder perguntas como:
-
-- Qual pacote foi adicionado?
-- Quando isso ocorreu?
-- Por que ele faz parte do repositório?
-- O que mudou desde a última sincronização?
-
-sem depender de ferramentas externas ou informações ocultas.
-
----
-
-## Simplicidade
-
-A simplicidade é tratada como um requisito arquitetural.
-
-Antes de adicionar novas funcionalidades, o projeto procura reduzir complexidade, reutilizar componentes existentes e preservar uma estrutura compreensível.
-
-Sempre que duas soluções forem equivalentes em funcionalidade, a mais simples tende a ser preferida.
-
----
-
-## Filosofia UNIX
-
-Sempre que possível, o projeto procura seguir a filosofia tradicional do ecossistema UNIX:
-
-- fazer uma coisa e fazê-la bem;
-- utilizar formatos de dados simples;
-- favorecer composição em vez de acoplamento;
-- integrar-se naturalmente às ferramentas já disponíveis no sistema operacional.
-
-Essa abordagem reduz dependências, facilita automação e mantém o comportamento previsível para administradores Linux.
-
----
-
-## Extensibilidade
-
-Embora a primeira implementação seja destinada ao ecossistema Debian/APT, a arquitetura foi concebida para permitir novos backends.
-
-Planejados:
-
-- DNF
-- MicroDNF
-- Zypper
-- Pacman *(em avaliação)*
-
-O objetivo é manter um núcleo único, reutilizando a maior parte da infraestrutura existente.
-
----
-
-## Modelo dos Três Estados
-
-O conceito central do **local-repo** é a separação entre intenção, conhecimento e realidade.
-
-```mermaid
-flowchart LR
-
-A["packages.list"]
-
--->
-
-B["packages.state"]
-
--->
-
-C["pool/"]
-```
-
-Esses três elementos representam estados completamente independentes.
-
----
-
-### Estado Desejado
-
-Arquivo:
-
-```
-packages.list
-```
-
-Representa aquilo que o administrador deseja manter no repositório.
-
-Exemplo:
-
-```text
-curl|amd64
-git|amd64
-docker.io|amd64
-```
-As seguintes entradas assumirão automaticamente a arquitetura nativa do sistema:
-
-```text
-tmux
-htop
-```
-
-É o único arquivo que pode ser editado manualmente.
-
-Pode inclusive ser versionado em Git.
-
----
-
-### Estado Conhecido
-
-Arquivo:
-
-```
-packages.state
-```
-
-Representa o inventário interno gerado automaticamente pelo sistema.
-
-Contém informações como:
-
-- versão;
-- arquitetura;
-- tipo;
-- data de registro.
-
-Caso seja perdido, pode ser reconstruído.
-
----
-
-### Estado Real
-
-Diretório:
-
-```
-pool/
-```
-
-Representa os arquivos físicos existentes no repositório.
-
-É a fonte definitiva da verdade.
-
----
-
-### Convergência
-
-O objetivo do sistema não é apenas armazenar pacotes.
-
-Seu objetivo é **convergir** continuamente esses três estados.
-
-```mermaid
-flowchart TD
-
-Desired["Estado Desejado"]
-
-Known["Estado Conhecido"]
-
-Real["Estado Real"]
-
-Desired --> Sync
-
-Real --> Scan
-
-Known --> Verify
-
-Sync --> Known
-
-Known --> Real
-```
-
-Essa abordagem oferece diversas vantagens:
-
-- reconstrução automática;
-- auditoria;
-- detecção de divergências;
-- sincronização incremental;
-- maior previsibilidade.
-
----
-
-## Layout do Repositório
-
-```text
-REPO_BASE_DIR/
-
-├── pool/
-│
-├── state/
-│   ├── packages.list
-│   └── packages.state
-│
-├── run/
-│   └── local-repo.lock
-│
-└── log/
-    └── local-repo.log
-```
-
-Cada diretório possui uma finalidade específica.
-
-| Diretório | Finalidade |
-|------------|------------|
-| pool | Pacotes físicos |
-| state | Estados declarativos |
-| run | Arquivos temporários e locks |
-| log | Auditoria |
-
----
-
-## Controle de Concorrência
-
-Operações que modificam o repositório utilizam travas baseadas em `flock`.
-
-```mermaid
-sequenceDiagram
-
-participant A as Processo A
-
-participant B as Processo B
-
-participant L as Lock
-
-A->>L: Solicita lock
-
-L-->>A: Concedido
-
-B->>L: Solicita lock
-
-L-->>B: Negado
-
-A->>L: Libera lock
-
-B->>L: Solicita novamente
-
-L-->>B: Concedido
-```
-
-Isso evita corrupção causada por múltiplas execuções simultâneas.
-
----
-
-## Portabilidade
-
-Todo o repositório pode ser movido para outro local sem necessidade de reconstrução.
-
-```
-SSD
-
-↓
-
-USB
-
-↓
-
-Outro servidor
-
-↓
-
-Outro diretório
-
-↓
-
-Mesmo repositório
-```
-
-Como os estados são independentes de caminhos absolutos, basta atualizar a configuração da aplicação.
-
----
-
-## Filosofia de Desenvolvimento
-
-Além da arquitetura técnica, o projeto adota alguns princípios durante sua implementação.
-
-- responsabilidade única;
-- baixo acoplamento;
-- alta coesão;
-- modularidade;
-- inicialização determinística;
-- infraestrutura desacoplada;
-- interfaces explícitas;
-- arquivos pequenos;
-- documentação antes da implementação;
-- arquitetura antes das funcionalidades.
-
-Esses princípios tornam o projeto mais previsível, mais fácil de manter e preparado para evoluir ao longo do tempo.
-
----
-
-## Decisões de Projeto
-
-Durante o desenvolvimento, algumas decisões foram tomadas deliberadamente.
-
-| Decisão | Motivação |
-|---------|-----------|
-| GNU Bash | Disponibilidade em praticamente todas as distribuições Linux |
-| Arquivos texto | Transparência e simplicidade |
-| Sem banco de dados | Facilidade de recuperação |
-| Sem daemon | Menor consumo de recursos |
-| Sem servidor web | Redução da complexidade |
-| Backend abstrato | Expansão futura |
-| Estados independentes | Auditoria e recuperação |
-| Estrutura modular | Evolução incremental |
-
----
-
-## Objetivos de Longo Prazo
-
-O **local-repo** busca evoluir preservando sua filosofia original.
-
-Isso significa que novas funcionalidades devem respeitar alguns princípios fundamentais:
-
-- simplicidade antes de complexidade;
-- previsibilidade antes de automação excessiva;
-- transparência antes de abstrações ocultas;
-- portabilidade antes de otimizações específicas;
-- estabilidade antes da quantidade de funcionalidades.
-
-Mais do que adicionar novos recursos, o objetivo é manter uma base arquitetural consistente, capaz de crescer sem perder suas características originais.
-
-
+Distribuído sob a licença MIT. Veja [LICENSE](LICENSE) para mais detalhes.
