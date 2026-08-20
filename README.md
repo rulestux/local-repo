@@ -206,7 +206,7 @@ Comandos com ✅ estão implementados e funcionam com o backend APT hoje. Comand
 | Comando | Status | Descrição |
 |---|:---:|---|
 | `init` | ✅ | Inicializa um novo repositório (pastas + manifesto inicial) |
-| `download <pkg>[|arch] ...` | ✅ | Adiciona pacotes ao estado desejado e sincroniza |
+| `download <pkg>[arch] ...` | ✅ | Adiciona pacotes ao estado desejado e sincroniza |
 | `install <pkg>` | ✅ | `download` + instalação no host a partir do repositório local |
 | `sync` | ✅ | Converge `pool/` com o que está em `packages.list` |
 | `diff` | ✅ | Mostra divergências entre desejado, conhecido e real |
