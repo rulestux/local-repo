@@ -78,6 +78,39 @@ FILE_KNOWN_STATE=""
 CURRENT_BACKEND=""
 LOG_LEVEL=""
 
+constants_apply_repo_base_dir() {
+    #----------------------------------------------------------------
+    # APLICAÇÃO CENTRALIZADA DE UM NOVO REPO_BASE_DIR
+    #
+    # Recalcula todos os caminhos derivados (POOL_DIR, LOG_FILE,
+    # LOCK_FILE, STATE_DIR, FILE_DESIRED_STATE, FILE_KNOWN_STATE)
+    # sempre que REPO_BASE_DIR muda — seja no boot padrão, seja por
+    # config_load() lendo o .conf, seja pelo bootstrap detectando
+    # 'init <diretório>' na linha de comando. Centralizada aqui para
+    # que as três origens apliquem exatamente a mesma lógica, sem
+    # duplicação entre constants.sh/config.sh/bootstrap.sh.
+    #
+    # Duas normalizações defensivas:
+    #   - Remove a barra final, evitando caminhos com barra dupla nos
+    #     derivados (ex: '/mnt/usb//pool').
+    #   - Resolve caminhos relativos para absolutos com base no CWD
+    #     atual, já que REPO_BASE_DIR pode ser persistido em disco
+    #     (.conf) e reutilizado por invocações futuras a partir de um
+    #     diretório de trabalho diferente — um caminho relativo
+    #     armazenado se tornaria ambíguo/errado nesse cenário.
+    #----------------------------------------------------------------
+    local new_base_dir="${1%/}"
+    [[ "${new_base_dir}" != /* ]] && new_base_dir="$(pwd)/${new_base_dir}"
+
+    REPO_BASE_DIR="${new_base_dir}"
+    POOL_DIR="${REPO_BASE_DIR}/pool"
+    LOG_FILE="${REPO_BASE_DIR}/log/local-repo.log"
+    LOCK_FILE="${REPO_BASE_DIR}/run/local-repo.lock"
+    STATE_DIR="${REPO_BASE_DIR}/state"
+    FILE_DESIRED_STATE="${STATE_DIR}/packages.list"
+    FILE_KNOWN_STATE="${STATE_DIR}/packages.state"
+}
+
 constants_initialize_globals() {
     #----------------------------------------------------------------
     # INICIALIZAÇÃO DE VARIÁVEIS COMPARTILHADAS
@@ -86,16 +119,7 @@ constants_initialize_globals() {
     # mutáveis globais a partir de seus valores padrões de fallback.
     #----------------------------------------------------------------
     CONFIG_FILE="${DEFAULT_CONFIG_FILE}"
-    REPO_BASE_DIR="${DEFAULT_REPO_BASE_DIR}"
-
-    # Caminhos derivados que dependem do diretório base do repositório
-    POOL_DIR="${REPO_BASE_DIR}/pool"
-    LOG_FILE="${REPO_BASE_DIR}/log/local-repo.log"
-    LOCK_FILE="${REPO_BASE_DIR}/run/local-repo.lock"
-    STATE_DIR="${REPO_BASE_DIR}/state"
-
-    FILE_DESIRED_STATE="${STATE_DIR}/packages.list"
-    FILE_KNOWN_STATE="${STATE_DIR}/packages.state"
+    constants_apply_repo_base_dir "${DEFAULT_REPO_BASE_DIR}"
 
     #------------------------------------------------------------
     # BACKEND NÃO É PRÉ-DEFINIDO AQUI

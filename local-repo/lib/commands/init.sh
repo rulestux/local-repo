@@ -14,6 +14,36 @@
 [[ -n "${_INIT_SH_INCLUDED_}" ]] && return
 _INIT_SH_INCLUDED_=1
 
+_init_persist_repo_base_dir() {
+    #----------------------------------------------------------------
+    # PERSISTÊNCIA DA ESCOLHA DE DIRETÓRIO NO ARQUIVO DE CONFIGURAÇÃO
+    #
+    # Sem isso, o administrador precisaria repetir o caminho customizado
+    # em TODO comando futuro (sync, diff, update...). Grava ou atualiza
+    # a linha REPO_BASE_DIR="..." em CONFIG_FILE, fixando este
+    # workspace como padrão das próximas execuções — essencial para o
+    # caso de uso de dispositivo removível: aponta uma vez, e os
+    # comandos seguintes já usam o mesmo caminho automaticamente.
+    #----------------------------------------------------------------
+    if [[ ! -f "${CONFIG_FILE}" ]]; then
+        if ! mkdir -p "$(dirname "${CONFIG_FILE}")" 2>/dev/null; then
+            log_warn "Could not create configuration directory. Custom workspace path was NOT persisted: ${CONFIG_FILE}"
+            return
+        fi
+        echo "REPO_BASE_DIR=\"${REPO_BASE_DIR}\"" > "${CONFIG_FILE}"
+        log_info "Configuration file created, pinning this workspace as default: ${CONFIG_FILE}"
+        return
+    fi
+
+    if grep -qE '^[[:space:]]*REPO_BASE_DIR[[:space:]]*=' "${CONFIG_FILE}"; then
+        sed -i "s|^[[:space:]]*REPO_BASE_DIR[[:space:]]*=.*|REPO_BASE_DIR=\"${REPO_BASE_DIR}\"|" "${CONFIG_FILE}"
+    else
+        echo "REPO_BASE_DIR=\"${REPO_BASE_DIR}\"" >> "${CONFIG_FILE}"
+    fi
+
+    log_info "Persisted custom workspace location to configuration file: ${CONFIG_FILE}"
+}
+
 init_run() {
     #----------------------------------------------------------------
     # IMPLEMENTAÇÃO DO COMANDO DE INICIALIZAÇÃO DE WORKSPACE (INIT)
@@ -104,6 +134,19 @@ EOF
     # Invoca o driver do backend dinâmico para gerar os arquivos de índices do repositório
     log_info "Requesting repository index metadata generation from dynamic backend driver..."
     backend_generate_metadata "${REPO_BASE_DIR}"
+
+    #----------------------------------------------------------------
+    # PERSISTÊNCIA CONDICIONAL DO DIRETÓRIO CUSTOMIZADO
+    #
+    # 'init_run' recebe o mesmo argumento posicional que o bootstrap
+    # já usou para aplicar o override em REPO_BASE_DIR mais cedo (ver
+    # bootstrap.sh) — aqui só decidimos SE isso deve ser persistido.
+    # Sem argumento nenhum, REPO_BASE_DIR já veio do .conf ou do
+    # padrão '/var/local-repo', e não há nada novo para gravar.
+    #----------------------------------------------------------------
+    if [[ -n "${1:-}" ]]; then
+        _init_persist_repo_base_dir
+    fi
 
     log_info "Workspace successfully initialized and bound at '${REPO_BASE_DIR}'."
     return "${EXIT_SUCCESS}"

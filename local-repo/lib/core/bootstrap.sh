@@ -102,6 +102,27 @@ bootstrap_run() {
     # 6. Carrega o arquivo de configuração e atualiza as variáveis globais se necessário
     config_load
 
+    #------------------------------------------------------------
+    # OVERRIDE ANTECIPADO DE REPO_BASE_DIR PARA 'init <diretório>'
+    #
+    # Precisa ser resolvido AQUI — antes de lock_acquire() (passo 8) e
+    # da validação de escrita (passo 10) — porque ambos já operam
+    # sobre REPO_BASE_DIR. Se esse override só fosse aplicado dentro
+    # de init_run() (que só roda depois do dispatcher, bem mais
+    # abaixo), o lock já teria sido adquirido e a validação de
+    # permissão já teria rodado sobre o caminho ERRADO (o padrão), não
+    # sobre o diretório que o administrador pediu para usar.
+    #
+    # É um scan pontual e literal do argv original (ainda intacto
+    # neste ponto — o 'shift' do comando só acontece no passo 11) —
+    # não um parser de flags genérico — porque hoje 'init' é o único
+    # comando que aceita um argumento posicional de caminho.
+    #------------------------------------------------------------
+    if [[ "$1" == "init" ]] && [[ -n "${2:-}" ]]; then
+        log_debug "Custom workspace directory requested via CLI: $2"
+        constants_apply_repo_base_dir "$2"
+    fi
+
     # 7. Executa a varredura e validação de sanidade do ambiente operacional host
     # (Validar o ambiente sempre deve vir antes de qualquer subsistema
     # que dependa de binários externos específicos.)

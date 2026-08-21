@@ -51,14 +51,7 @@ config_load() {
             # Aplica a Whitelist de segurança: Modifica apenas o escopo autorizado do core
             case "${key}" in
                 REPO_BASE_DIR)
-                    REPO_BASE_DIR="${value}"
-                    # Remapeia dinamicamente os caminhos subordinados dependentes
-                    POOL_DIR="${REPO_BASE_DIR}/pool"
-                    LOG_FILE="${REPO_BASE_DIR}/log/local-repo.log"
-                    LOCK_FILE="${REPO_BASE_DIR}/run/local-repo.lock"
-                    STATE_DIR="${REPO_BASE_DIR}/state"
-                    FILE_DESIRED_STATE="${STATE_DIR}/packages.list"
-                    FILE_KNOWN_STATE="${STATE_DIR}/packages.state"
+                    constants_apply_repo_base_dir "${value}"
                     ;;
                 CURRENT_BACKEND|BACKEND)
                     #------------------------------------------------
