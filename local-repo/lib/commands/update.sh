@@ -56,21 +56,22 @@ update_run() {
     #----------------------------------------------------------------
     # ATUALIZAÇÃO DO CACHE UPSTREAM + CALCULADORA DIFERENCIAL (UPDATE)
     #
-    # Comando de uso direto pelo administrador: refresca o cache real
-    # do backend contra as fontes oficiais do host (não a pool local
-    # isolada — esse é o 'update' escopado dentro de
-    # backend_install_from_local_pool, propósito diferente) e, em
-    # seguida, delega para _update_list_outdated_packages() o cálculo
-    # e a exibição do que está desatualizado na pool.
+    # 1. Tenta atualizar o cache contra os repositórios oficiais.
+    # 2. Se não houver resposta (sem internet, repositório fora do
+    #    ar), NÃO trata como erro — apenas segue adiante com o último
+    #    cache local já disponível, registrando isso via log_warn.
+    # 3. Sempre executa o cálculo diferencial (_update_list_outdated_
+    #    packages), mesmo quando o passo 1 falhou — comparar a pool
+    #    contra um cache desatualizado ainda é uma operação válida,
+    #    só deixa de ser garantidamente fresca.
     #----------------------------------------------------------------
     log_info "Refreshing upstream repository package index cache..."
 
-    if ! backend_refresh_upstream_cache; then
-        log_error "Failed to refresh upstream repository cache. Check network connectivity and repository configuration."
-        return "${EXIT_FAILURE}"
+    if backend_refresh_upstream_cache; then
+        log_info "Upstream repository cache successfully refreshed."
+    else
+        log_warn "Upstream repository unreachable. Proceeding with the last known local cache."
     fi
-
-    log_info "Upstream repository cache successfully refreshed."
 
     _update_list_outdated_packages
     return "${EXIT_SUCCESS}"

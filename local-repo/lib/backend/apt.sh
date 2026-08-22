@@ -290,3 +290,20 @@ backend_compare_versions() {
     dpkg --compare-versions "${upstream_version}" gt "${local_version}"
     return $?
 }
+
+backend_is_package_installed() {
+    dpkg -s "$1" &> /dev/null
+    return $?
+}
+
+backend_query_installed_version() {
+    local version
+    version=$(dpkg-query -W -f='${Version}' "$1" 2>/dev/null)
+
+    if [[ -z "${version}" ]]; then
+        return "${EXIT_FAILURE}"
+    fi
+
+    echo "${version}"
+    return "${EXIT_SUCCESS}"
+}

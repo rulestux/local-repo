@@ -138,3 +138,23 @@ backend_parse_pool_version() { :; }
 #             que a local ($1). !=0 se local for igual ou mais recente.
 #====================================================================
 backend_compare_versions() { :; }
+
+#====================================================================
+# ASSINATURA: backend_is_package_installed
+# DESCRIÇÃO:  Verifica se um pacote está atualmente instalado no
+#             sistema hospedeiro (independente de estar ou não na
+#             pool/ local).
+# ARGUMENTOS: $1 - Nome exato do pacote.
+# RETORNO:    0 se instalado; !=0 caso contrário.
+#====================================================================
+backend_is_package_installed() { :; }
+
+#====================================================================
+# ASSINATURA: backend_query_installed_version
+# DESCRIÇÃO:  Consulta a versão atualmente instalada de um pacote no
+#             sistema hospedeiro.
+# ARGUMENTOS: $1 - Nome exato do pacote.
+# RETORNO:    Imprime em stdout a string de versão instalada.
+#             0 se o pacote estiver instalado; !=0 caso contrário.
+#====================================================================
+backend_query_installed_version() { :; }

@@ -16,83 +16,123 @@ _UPGRADE_SH_INCLUDED_=1
 
 upgrade_run() {
     #----------------------------------------------------------------
-    # RECONVERGÊNCIA DE VERSÃO DOS PACOTES JÁ RASTREADOS (ESPELHA 'install')
+    # ATUALIZAÇÃO DE PACOTES JÁ INSTALADOS NO HOST (SEMÂNTICA APT/DNF)
     #
-    # Chama update_run() internamente, exatamente como install_run()
-    # chama download_run() — o administrador só precisa invocar
-    # 'upgrade', sem precisar saber que existe um passo de 'update' por
-    # trás (mesma relação de composição já estabelecida no projeto).
+    # Diferente de 'converge' (que só atua sobre a pool/ local),
+    # 'upgrade' é o único comando do projeto, junto de 'install', que
+    # efetivamente modifica o sistema hospedeiro. Fluxo: garante cache
+    # e pool atualizados (update + converge), depois varre a
+    # interseção entre 'pool/' e pacotes já instalados no host,
+    # listando e reinstalando os desatualizados.
+    #
+    # Padrão de confirmação: SEM nenhuma flag, o comportamento já é
+    # equivalente a '-y'/'--yes' (prossegue automaticamente) — mantém
+    # o projeto operável em cron/scripts sem exigir flag explícita.
+    # '-n'/'--no' inverte isso: computa e lista as pendências, mas não
+    # instala nada (modo de pré-visualização).
     #----------------------------------------------------------------
-    log_info "Initiating repository upgrade cycle for outdated packages..."
+    local assume_yes=1
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -y|--yes|-Y|--Yes)
+                assume_yes=1
+                shift
+                ;;
+            -n|--no)
+                assume_yes=0
+                shift
+                ;;
+            *)
+                log_error "Unknown argument for upgrade command: '$1'"
+                return "${EXIT_INVALID_USAGE}"
+                ;;
+        esac
+    done
+
+    log_info "Initiating host package upgrade cycle..."
 
     _bootstrap_source_command "update"
     update_run || return "$?"
+
+    _bootstrap_source_command "converge"
+    converge_run || return "$?"
 
     if [[ ! -d "${REPO_BASE_DIR}/pool" ]]; then
         log_error "Repository workspace not initialized. Please run '${PROGRAM_NAME} init' first."
         return "${EXIT_FAILURE}"
     fi
 
+    log_info "Scanning for installed packages with newer versions available in the local pool..."
+
     #------------------------------------------------------------
-    # SNAPSHOT DA POOL ANTES DE QUALQUER MODIFICAÇÃO
+    # ARRAYS PARALELOS PARA REGISTRAR AS PENDÊNCIAS ENCONTRADAS
     #
-    # Materializa a lista de arquivos num array ANTES do loop começar
-    # a baixar/remover arquivos da mesma pool/. Se isso fosse feito
-    # via 'while read < <(find ...)' direto (como em outros comandos
-    # deste projeto que só LEEM a pool), o 'find' poderia enxergar os
-    # próprios arquivos novos sendo baixados no meio da própria
-    # varredura, processando-os de novo na mesma execução — aqui, ao
-    # contrário de diff/sync, o loop também ESCREVE na pool.
+    # Precisamos listar tudo ANTES de decidir se instala (o '-n' pode
+    # cancelar a instalação depois de já termos a lista completa) —
+    # por isso a varredura acumula em memória em vez de agir pacote a
+    # pacote dentro do próprio loop, como converge.sh faz.
     #------------------------------------------------------------
-    local -a pool_files=()
+    local -a pending_names=()
+    local -a pending_from=()
+    local -a pending_to=()
+
     while IFS= read -r -d '' pool_file; do
-        pool_files+=("${pool_file}")
-    done < <(find "${REPO_BASE_DIR}/pool" -maxdepth 1 -type f -print0)
+        local base_name identity pkg_name pool_version installed_version
 
-    local upgraded_count=0
-
-    for pool_file in "${pool_files[@]}"; do
-        local base_name
         base_name="$(basename "${pool_file}")"
 
-        local identity
-        if ! identity=$(backend_parse_pool_identity "${base_name}"); then
-            continue
+        identity=$(backend_parse_pool_identity "${base_name}") || continue
+        pkg_name="${identity%%|*}"
+
+        pool_version=$(backend_parse_pool_version "${base_name}") || continue
+
+        # Só nos interessa quem já está instalado no host — pacotes
+        # presentes na pool mas nunca instalados não fazem parte do
+        # escopo do 'upgrade' (esse é o papel do 'install').
+        backend_is_package_installed "${pkg_name}" || continue
+
+        installed_version=$(backend_query_installed_version "${pkg_name}") || continue
+
+        if backend_compare_versions "${installed_version}" "${pool_version}"; then
+            pending_names+=("${pkg_name}")
+            pending_from+=("${installed_version}")
+            pending_to+=("${pool_version}")
         fi
-        local pkg_name="${identity%%|*}"
-        local pkg_arch="${identity##*|}"
+    done < <(find "${REPO_BASE_DIR}/pool" -maxdepth 1 -type f -print0)
 
-        local local_version
-        if ! local_version=$(backend_parse_pool_version "${base_name}"); then
-            continue
-        fi
+    if [[ ${#pending_names[@]} -eq 0 ]]; then
+        log_info "All installed packages are already at their latest pool-available version."
+        return "${EXIT_SUCCESS}"
+    fi
 
-        local upstream_version
-        if ! upstream_version=$(backend_query_upstream_version "${pkg_name}"); then
-            continue
-        fi
+    log_info "${#pending_names[@]} installed package(s) have newer versions available in the local pool:"
+    local i
+    for i in "${!pending_names[@]}"; do
+        echo "  ${pending_names[${i}]}: ${pending_from[${i}]} -> ${pending_to[${i}]}"
+    done
 
-        if ! backend_compare_versions "${local_version}" "${upstream_version}"; then
-            continue
-        fi
+    if [[ ${assume_yes} -eq 0 ]]; then
+        log_info "Dry-run mode ('-n'/'--no'): no packages were installed on host."
+        return "${EXIT_SUCCESS}"
+    fi
 
-        log_info "Upgrading '${pkg_name}' (${local_version} -> ${upstream_version})..."
-
-        if backend_download_package "${pkg_name}" "${REPO_BASE_DIR}/pool" "${pkg_arch}"; then
-            # packages.state não rastreia versão — manter o .deb antigo
-            # na pool só acumularia binários obsoletos sem propósito.
-            rm -f "${pool_file}"
+    local upgraded_count=0
+    local pkg_name
+    for pkg_name in "${pending_names[@]}"; do
+        log_info "Reinstalling upgraded package on host: ${pkg_name}"
+        if backend_install_from_local_pool "${pkg_name}" "${REPO_BASE_DIR}"; then
             upgraded_count=$((upgraded_count + 1))
         else
-            log_error "Failed to download upgraded version for: ${pkg_name}"
+            log_error "Failed to upgrade package on host: ${pkg_name}"
         fi
     done
 
-    if [[ ${upgraded_count} -gt 0 ]]; then
-        log_info "Rebuilding repository index files after upgrade..."
-        backend_generate_metadata "${REPO_BASE_DIR}"
+    if [[ ${upgraded_count} -lt ${#pending_names[@]} ]]; then
+        log_error "Host upgrade cycle incomplete: only ${upgraded_count} of ${#pending_names[@]} package(s) were successfully upgraded."
+        return "${EXIT_FAILURE}"
     fi
 
-    log_info "Upgrade cycle completed. ${upgraded_count} package(s) upgraded."
+    log_info "Host upgrade cycle completed. All ${upgraded_count}/${#pending_names[@]} package(s) upgraded successfully."
     return "${EXIT_SUCCESS}"
 }
