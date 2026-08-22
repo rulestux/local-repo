@@ -212,6 +212,10 @@ bootstrap_run() {
             _bootstrap_source_command "update"
             update_run "$@" || exit "$?"
             ;;
+        converge)
+            _bootstrap_source_command "converge"
+            converge_run "$@" || exit "$?"
+            ;;
         upgrade)
             _bootstrap_source_command "upgrade"
             upgrade_run "$@" || exit "$?"
