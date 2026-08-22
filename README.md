@@ -58,19 +58,20 @@ Não é um espelho (*mirror*) completo de uma distribuição — é um repositó
 ## Estado atual do projeto
 
 > [!WARNING]
-> O **local-repo** está em desenvolvimento ativo (versão `0.1`, pré-alpha). A arquitetura está definida e uma parte relevante do núcleo já funciona; o restante está planejado para versões futuras.
+> O **local-repo** está em desenvolvimento ativo (versão `0.2`, pré-alpha). A arquitetura está definida e uma parte relevante do núcleo já funciona; o restante está planejado para versões futuras.
 
 O que **já está implementado e funcional** hoje, com backend APT (Debian/Ubuntu):
 
 | Comando | O que faz |
 |---|---|
-| `init` | Cria a estrutura do repositório e o manifesto inicial |
+| `init [diretório]` | Cria a estrutura do repositório e o manifesto inicial (opcionalmente num diretório customizado, ex: pen drive) |
 | `download` | Registra pacotes no estado desejado e sincroniza |
 | `install` | Faz `download` + instala o pacote no host a partir do repositório local |
 | `sync` | Converge o repositório com o que está declarado em `packages.list` |
 | `diff` | Mostra divergências entre o que foi declarado, o que é conhecido e o que existe fisicamente |
-| `update` | Atualiza o cache de metadados upstream e lista pacotes desatualizados |
-| `upgrade` | Baixa novamente pacotes desatualizados e limpa versões antigas |
+| `update` | Atualiza o cache de metadados upstream (tolerante à falta de conexão) e lista pacotes desatualizados na pool |
+| `converge` | Atualiza a *pool* local com as versões mais recentes disponíveis no upstream |
+| `upgrade` | Atualiza, no host, os pacotes já instalados que estão desatualizados em relação à pool (com confirmação) |
 | `import` | Importa um repositório existente (`--from-iso`, `--from-directory`, `--from-tar`) |
 | `export` | Exporta o repositório para um `.tar.gz` de backup/transporte |
 
@@ -129,17 +130,27 @@ sudo dnf install createrepo_c rpm dnf-plugins-core
 
 ## Instalação
 
-> [!WARNING]
-> O **local-repo** está em desenvolvimento ativo (versão `0.1`, pré-alpha). A arquitetura está definida e uma parte relevante do núcleo já funciona; o restante está planejado para versões futuras.
-> O script `install.sh` ainda não foi implementado, embora o `local-repo` já esteja funcional para distribuições Debian/Ubuntu (gerenciador de pacotes `apt`).
+O `local-repo` **não precisa de instalação**. É uma ferramenta autocontida: basta clonar o repositório e dar permissão de execução ao dispatcher.
 
 ```bash
 git clone https://github.com/rulestux/local-repo.git
 cd local-repo
-sudo ./install.sh
+chmod +x ./local-repo
 ```
 
-O script `install.sh` copia os arquivos para o sistema e deixa o comando `local-repo` disponível no `PATH`.
+Pronto — a ferramenta já está pronta para uso a partir desse diretório:
+
+```bash
+sudo ./local-repo init
+```
+
+Se preferir rodar `local-repo` de qualquer lugar do sistema (sem digitar `./` ou o caminho completo), basta colocar o diretório clonado no seu `PATH`, ou criar um link simbólico apontando para o dispatcher, por exemplo:
+
+```bash
+sudo ln -s "$(pwd)/local-repo" /usr/local/bin/local-repo
+```
+
+Isso é inteiramente opcional — não existe (nem é necessário) nenhum script de instalação separado que copie arquivos pelo sistema.
 
 ---
 
@@ -152,6 +163,14 @@ sudo local-repo init
 ```
 
 Cria a estrutura de pastas em `${REPO_BASE_DIR}` (por padrão `/var/local-repo`, ajustável via configuração — veja [Arquivo de configuração](#arquivo-de-configuração)) e um `packages.list` de exemplo comentado.
+
+Se quiser usar um diretório diferente do padrão — por exemplo, um pen drive montado — basta informar o caminho como argumento posicional:
+
+```bash
+sudo local-repo init /mnt/usb-drive/local-repo
+```
+
+O diretório é criado automaticamente caso não exista, e esse caminho passa a ser usado por padrão em todos os comandos seguintes (a escolha é persistida em `/etc/local-repo/local-repo.conf`), sem precisar repeti-lo depois.
 
 ### 2. Declare os pacotes que você quer
 
@@ -197,6 +216,46 @@ Saída típica:
 
 `+` marca o que está declarado mas ainda não foi baixado; `!` marca arquivos presentes na `pool/` que não constam no inventário.
 
+### 6. Mantenha tudo atualizado
+
+O local-repo separa "atualizar a pool" de "atualizar o que está instalado no host" em três comandos distintos, cada um com uma responsabilidade específica:
+
+```bash
+sudo local-repo update
+```
+
+Atualiza o cache de metadados contra o repositório oficial (se não houver conexão, segue adiante com o último cache disponível) e lista o que está desatualizado na `pool/`:
+
+```text
+2 package(s) have newer versions available upstream. Run 'local-repo upgrade' to update them.
+curl
+git
+```
+
+```bash
+sudo local-repo converge
+```
+
+Baixa novamente, para dentro da `pool/`, as versões mais recentes dos pacotes já rastreados — sem tocar em nada que esteja instalado no sistema.
+
+```bash
+sudo local-repo upgrade
+```
+
+Atualiza `update` + `converge` internamente, depois compara os pacotes **já instalados no host** com o que está disponível na pool e lista as pendências:
+
+```text
+2 installed package(s) have newer versions available in the local pool:
+  curl: 8.14.0-1 -> 8.16.0-1
+  git: 2.49.0-1 -> 2.51.0-1
+```
+
+Sem nenhuma flag, o `upgrade` já prossegue automaticamente com a reinstalação (equivalente a `-y`/`--yes`) — pensado para funcionar sem intervenção manual em cron/automação. Use `-n`/`--no` para só visualizar o que seria atualizado, sem instalar nada:
+
+```bash
+sudo local-repo upgrade -n
+```
+
 ---
 
 ## Referência de comandos
@@ -205,13 +264,14 @@ Comandos com ✅ estão implementados e funcionam com o backend APT hoje. Comand
 
 | Comando | Status | Descrição |
 |---|:---:|---|
-| `init` | ✅ | Inicializa um novo repositório (pastas + manifesto inicial) |
-| `download <pkg>[arch] ...` | ✅ | Adiciona pacotes ao estado desejado e sincroniza |
+| `init [diretório]` | ✅ | Inicializa um novo repositório (pastas + manifesto inicial); diretório customizado é opcional e fica persistido para uso futuro |
+| `download <pkg>[|arch] ...` | ✅ | Adiciona pacotes ao estado desejado e sincroniza |
 | `install <pkg>` | ✅ | `download` + instalação no host a partir do repositório local |
 | `sync` | ✅ | Converge `pool/` com o que está em `packages.list` |
 | `diff` | ✅ | Mostra divergências entre desejado, conhecido e real |
-| `update` | ✅ | Atualiza cache upstream e lista pacotes desatualizados na pool |
-| `upgrade` | ✅ | Baixa versões atualizadas e remove as obsoletas da pool |
+| `update` | ✅ | Atualiza o cache upstream (tolerante à falta de rede) e lista pacotes desatualizados na pool |
+| `converge` | ✅ | Baixa novamente para a `pool/` as versões mais recentes dos pacotes já rastreados |
+| `upgrade [-y\|--yes\|-Y\|--Yes\|-n\|--no]` | ✅ | Atualiza pool + reinstala no host os pacotes já instalados que estejam desatualizados; `-y` é o padrão implícito, `-n` só lista sem instalar |
 | `import --from-iso <arquivo.iso>` | ✅ | Importa pacotes a partir de uma imagem ISO |
 | `import --from-directory <dir>` | ✅ | Importa pacotes a partir de um diretório existente |
 | `import --from-tar <arquivo.tar.gz>` | ✅ | Restaura um repositório exportado anteriormente |
@@ -258,7 +318,7 @@ Se a arquitetura for omitida, o local-repo usa automaticamente a arquitetura nat
 
 ### Formato de `packages.state`
 
-É gerado e mantido pelo próprio sistema — não deve ser editado à mão. No estado atual da implementação, cada linha contém `nome|arquitetura`, ordenada e sem duplicatas, refletindo o que já foi convergido para a `pool/`. (Rastreamento adicional por versão/data faz parte do desenho arquitetural, mas ainda não está implementado no formato do arquivo.)
+É gerado e mantido pelo próprio sistema — não deve ser editado à mão. No estado atual da implementação, cada linha contém `nome|arquitetura`, ordenada e sem duplicatas, refletindo o que já foi convergido para a `pool/`. (Rastreamento adicional por versão/data faz parte do desenho arquitetural, mas ainda não está implementado no formato do arquivo — comandos como `update`/`converge`/`upgrade` obtêm a versão diretamente do nome físico do arquivo em `pool/`, não desse arquivo de estado.)
 
 ---
 
@@ -284,7 +344,7 @@ O arquivo é lido linha a linha por um parser próprio (não é feito `source` d
 | `BACKEND` | `apt` (`dnf` planejado) | Backend usado para resolver e baixar pacotes |
 | `LOG_LEVEL` | `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL` | Verbosidade dos logs |
 
-Se o arquivo não existir, o local-repo usa `/var/local-repo` como diretório padrão do repositório.
+Se o arquivo não existir, o local-repo usa `/var/local-repo` como diretório padrão do repositório. Rodar `local-repo init <diretório>` com um caminho customizado cria (ou atualiza) este arquivo automaticamente, fixando esse caminho como padrão das execuções seguintes.
 
 ---
 
@@ -303,6 +363,18 @@ pool/          →  o que EXISTE fisicamente em disco (Estado Real)
 Comandos como `sync` e `download` fazem esses estados **convergirem**: comparam o desejado com o conhecido e baixam apenas a diferença. O comando `diff` faz essa comparação de forma passiva, sem alterar nada — só relata os desvios.
 
 Essa separação é o que permite, por exemplo, que um inventário perdido seja reconstruído a partir dos arquivos físicos (comando `scan`, planejado), ou que divergências sejam auditadas sem depender de um banco de dados.
+
+### O ciclo de atualização: `update` → `converge` → `upgrade`
+
+Separado do modelo dos três estados, existe um segundo eixo — o de **frescor de versão** — resolvido por três comandos que se compõem em camadas, cada um adicionando uma responsabilidade sobre o anterior:
+
+```text
+update    →  só CONSULTA o upstream e informa o que está desatualizado (não modifica nada)
+converge  →  ATUALIZA a pool/ local com as versões mais recentes (não toca no host)
+upgrade   →  chama update + converge, e então ATUALIZA o que já está instalado no host
+```
+
+Essa separação em camadas existe para que operações "seguras" (que só tocam a `pool/`, nunca o sistema em uso) fiquem isoladas das operações que de fato alteram o host — hoje só `install` e `upgrade` modificam o sistema hospedeiro; todos os demais comandos atuam exclusivamente sobre o repositório local.
 
 ### Abstração de backend
 
@@ -326,7 +398,7 @@ Operações que modificam o repositório adquirem uma trava via `flock` (`run/lo
 
 ### Portabilidade
 
-Como nenhum estado depende de caminhos absolutos fixos, o repositório inteiro pode ser copiado para outro pen drive, outro diretório ou outra máquina — basta apontar `REPO_BASE_DIR` para o novo local.
+Como nenhum estado depende de caminhos absolutos fixos, o repositório inteiro pode ser copiado para outro pen drive, outro diretório ou outra máquina — basta apontar `REPO_BASE_DIR` para o novo local (via `local-repo init <diretório>` ou editando o `.conf` diretamente).
 
 ---
 
@@ -353,14 +425,13 @@ local-repo/
 │   │   ├── backend.sh         # Detecção e carregamento dinâmico do backend
 │   │   ├── apt.sh              # Driver para Debian/Ubuntu (implementado)
 │   │   └── dnf.sh              # Driver para Fedora/RHEL (planejado)
-│   └── commands/              # Um módulo por comando (init.sh, sync.sh, diff.sh...)
+│   └── commands/              # Um módulo por comando (init.sh, sync.sh, diff.sh,
+│                               # update.sh, converge.sh, upgrade.sh, ...)
 ├── tui/                     # Telas da interface em modo texto (planejado)
-├── install.sh
-├── uninstall.sh
 └── README.md
 ```
 
-Cada comando tem seu próprio arquivo em `lib/commands/`, evitando um script único e gigantesco — isso facilita revisar, testar e adicionar comandos novos isoladamente.
+Cada comando tem seu próprio arquivo em `lib/commands/`, evitando um script único e gigantesco — isso facilita revisar, testar e adicionar comandos novos isoladamente. Não existe nenhum script de instalação/desinstalação na raiz do projeto: o `local-repo` roda diretamente a partir do repositório clonado (veja [Instalação](#instalação)).
 
 ---
 
@@ -375,7 +446,7 @@ Decisões que guiam o projeto e que qualquer contribuição deve respeitar:
 - **Idempotência** — rodar `sync` duas vezes seguidas não deve baixar nada duas vezes.
 - **Portabilidade** — nenhuma dependência de caminho absoluto fixo do host.
 - **Sem daemon, sem banco de dados, sem servidor web** — menor superfície, menor consumo de recursos, mais fácil de auditar.
-- **Simplicidade antes de funcionalidades** — preferir a solução mais simples sempre que houver equivalência funcional.
+- **Simplicidade antes de funcionalidades** — preferir a solução mais simples sempre que houver equivalência funcional, inclusive na própria distribuição da ferramenta: sem instalador dedicado, sem passos além de clonar e dar permissão de execução.
 
 ---
 
